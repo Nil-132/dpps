@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PW Practice Dashboard</title>
+    <style>
+        :root {
+            --sidebar-width: 260px;
+            --primary-blue: #007bff;
+            --bg-light: #f8faff;
+        }
+
+        body {
+            margin: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            background-color: var(--bg-light);
+        }
+
+        /* --- Sidebar Styles --- */
+        #sidebar {
+            width: var(--sidebar-width);
+            height: 100vh;
+            background: white;
+            border-right: 1px solid #e0e0e0;
+            position: fixed;
+            transition: transform 0.3s ease;
+            z-index: 1000;
+        }
+
+        #sidebar.hidden {
+            transform: translateX(-100%);
+        }
+
+        .sidebar-header {
+            padding: 20px;
+            font-weight: bold;
+            color: var(--primary-blue);
+            font-size: 1.2rem;
+            display: flex;
+            align-items: center;
+        }
+
+        .nav-item {
+            padding: 12px 25px;
+            color: #666;
+            text-decoration: none;
+            display: block;
+            font-size: 0.9rem;
+        }
+
+        .nav-item.active {
+            background-color: #eef4ff;
+            color: var(--primary-blue);
+            border-right: 4px solid var(--primary-blue);
+        }
+
+        /* --- Main Content Area --- */
+        #main-content {
+            flex-grow: 1;
+            margin-left: var(--sidebar-width);
+            transition: margin-left 0.3s ease;
+            padding: 40px;
+            min-height: 100vh;
+        }
+
+        #main-content.expanded {
+            margin-left: 0;
+        }
+
+        /* --- The Three Dots Menu --- */
+        .menu-btn {
+            position: fixed;
+            top: 15px;
+            left: 15px;
+            width: 35px;
+            height: 35px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            gap: 3px;
+            cursor: pointer;
+            z-index: 1100;
+            background: white;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        .menu-btn span {
+            width: 4px;
+            height: 4px;
+            background-color: #333;
+            border-radius: 50%;
+        }
+
+        /* --- Content Styling (Mockup) --- */
+        .content-header h1 { margin-top: 20px; color: #333; }
+        .section-title { 
+            color: var(--primary-blue); 
+            border-left: 4px solid var(--primary-blue);
+            padding-left: 10px;
+            margin: 30px 0 15px 0;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+        }
+
+        .card {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            margin-bottom: 15px;
+        }
+
+        .btn-test {
+            background: var(--primary-blue);
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="menu-btn" onclick="toggleMenu()">
+        <span></span>
+        <span></span>
+        <span></span>
+    </div>
+
+    <div id="sidebar">
+        <div class="sidebar-header">
+            <span style="background:var(--primary-blue); width:12px; height:12px; border-radius:3px; margin-right:8px;"></span>
+            PW Practice
+        </div>
+        <a href="#" class="nav-item active">Dashboard</a>
+        <a href="#" class="nav-item">Analytics</a>
+        <a href="#" class="nav-item">Settings</a>
+    </div>
+
+    <div id="main-content">
+        <div class="content-header">
+            <h1>My Learning Path</h1>
+            <p style="color: #888;">Select a chapter to continue your practice.</p>
+        </div>
+
+        <div class="section-title">Chapter 01: Logical Reasoning</div>
+        
+        <div class="card">
+            <div>
+                <div style="font-weight: bold;">Linear Arrangement (Level-1)</div>
+                <div style="font-size: 0.8rem; color: #888;">53 Questions • <span style="color: green;">Score: 0/53</span></div>
+            </div>
+            <button class="btn-test">Start Test</button>
+        </div>
+
+        <div class="card">
+            <div>
+                <div style="font-weight: bold;">Circular Arrangement</div>
+                <div style="font-size: 0.8rem; color: #888;">15 Questions • <span style="color: green;">Score: 0/15</span></div>
+            </div>
+            <button class="btn-test">Start Test</button>
+        </div>
+    </div>
+
+    <script>
+        function toggleMenu() {
+            const sidebar = document.getElementById('sidebar');
+            const mainContent = document.getElementById('main-content');
+            
+            sidebar.classList.toggle('hidden');
+            mainContent.classList.toggle('expanded');
+        }
+    </script>
+</body>
+</html>
+
