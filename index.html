@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DPP Dashboard | Premium Learning</title>
+    <style>
+        :root {
+            --primary: #0087fd;
+            --primary-dark: #0056b3;
+            --bg: #f0f2f5;
+            --card-bg: rgba(255, 255, 255, 0.9);
+            --text-main: #1a1f36;
+            --text-muted: #4f566b;
+            --glass: rgba(255, 255, 255, 0.7);
+            --border-color: rgba(204, 213, 240, 0.5);
+            --success: #2fb138;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: var(--bg);
+            background-image: 
+                radial-gradient(at 0% 0%, rgba(0, 135, 253, 0.05) 0px, transparent 50%),
+                radial-gradient(at 100% 100%, rgba(0, 135, 253, 0.05) 0px, transparent 50%);
+            margin: 0;
+            color: var(--text-main);
+            display: flex;
+            min-height: 100vh;
+        }
+
+        /* --- SIDEBAR --- */
+        nav {
+            width: 260px;
+            background: white;
+            border-right: 1px solid #e3e8ee;
+            display: flex;
+            flex-direction: column;
+            padding: 30px 20px;
+            position: sticky;
+            top: 0;
+            height: 100vh;
+            box-sizing: border-box;
+        }
+
+        .logo {
+            font-size: 1.5rem;
+            font-weight: 800;
+            color: var(--primary);
+            margin-bottom: 40px;
+            display: flex;
+            align-items: center; gap: 10px;
+        }
+
+        .nav-link {
+            text-decoration: none;
+            color: var(--text-muted);
+            padding: 12px 15px;
+            border-radius: 10px;
+            margin-bottom: 8px;
+            font-weight: 500;
+            transition: 0.3s;
+        }
+
+        .nav-link.active, .nav-link:hover {
+            background: #eff6ff;
+            color: var(--primary);
+        }
+
+        /* --- MAIN CONTENT --- */
+        main {
+            flex: 1;
+            padding: 40px 60px;
+            max-width: 1000px;
+        }
+
+        header { margin-bottom: 40px; }
+        h1 { font-size: 2.2rem; margin: 0; letter-spacing: -0.5px; }
+        .subtitle { color: var(--text-muted); margin-top: 8px; font-size: 1.1rem; }
+
+        /* --- CHAPTER SECTION --- */
+        .chapter-section {
+            margin-bottom: 40px;
+        }
+
+        .chapter-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid var(--border-color);
+        }
+
+        .chapter-header h2 {
+            font-size: 1.1rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-muted);
+            margin: 0;
+        }
+
+        .chapter-icon {
+            width: 8px;
+            height: 24px;
+            background: var(--primary);
+            border-radius: 4px;
+        }
+
+        /* --- TEST LIST --- */
+        .test-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 15px;
+        }
+
+        .test-card {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 20px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: 0.2s;
+            backdrop-filter: blur(10px);
+        }
+
+        .test-card:hover {
+            border-color: var(--primary);
+            background: white;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.04);
+        }
+
+        .test-info h3 { margin: 0 0 6px 0; font-size: 1.15rem; }
+
+        .test-meta {
+            display: flex;
+            gap: 15px;
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            align-items: center;
+        }
+
+        .status-badge {
+            font-size: 0.75rem;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-weight: 700;
+            display: none; /* Hidden by default, shown via JS */
+        }
+
+        .status-completed {
+            background: #e6f9eb;
+            color: var(--success);
+            display: inline-block;
+        }
+
+        .btn-start {
+            background: var(--primary);
+            color: white;
+            text-decoration: none;
+            padding: 10px 20px;
+            border-radius: 10px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            transition: 0.3s;
+        }
+
+        .btn-start:hover { background: var(--primary-dark); }
+
+        @media (max-width: 768px) {
+            flex-direction: column;
+            main { padding: 20px; }
+            nav { width: 100%; height: auto; position: static; padding: 20px; }
+            .test-card { flex-direction: column; align-items: flex-start; gap: 15px; }
+        }
+    </style>
+</head>
+<body>
+
+<nav>
+    <div class="logo">
+        <div style="width: 32px; height: 32px; background: var(--primary); border-radius: 8px;"></div>
+        PW Practice
+    </div>
+    <a href="#" class="nav-link active">Dashboard</a>
+    <a href="#" class="nav-link">Analytics</a>
+    <a href="#" class="nav-link">Settings</a>
+</nav>
+
+<main>
+    <header>
+        <h1>My Learning Path</h1>
+        <p class="subtitle">Select a chapter to continue your practice.</p>
+    </header>
+
+    <div class="chapter-section">
+        <div class="chapter-header">
+            <div class="chapter-icon"></div>
+            <h2>Chapter 01: Logical Reasoning</h2>
+        </div>
+        
+        <div class="test-grid">
+            <div class="test-card" id="card-linear">
+                <div class="test-info">
+                    <h3>Linear Arrangement (Level-1)</h3>
+                    <div class="test-meta">
+                        <span>53 Questions</span>
+                        <span id="score-linear" class="status-badge status-completed">Score: 0/53</span>
+                    </div>
+                </div>
+                <a href="LA/DPP 01.html" class="btn-start">Start Test</a>
+            </div>
+
+            <div class="test-card" id="card-circular">
+                <div class="test-info">
+                    <h3>Circular Arrangement</h3>
+                    <div class="test-meta">
+                        <span>15 Questions</span>
+                        <span id="score-circular" class="status-badge status-completed">Score: 0/15</span>
+                    </div>
+                </div>
+                <a href="circular_test.html" class="btn-start">Start Test</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="chapter-section">
+        <div class="chapter-header">
+            <div class="chapter-icon"></div>
+            <h2>Chapter 02: Quantitative Aptitude</h2>
+        </div>
+        
+        <div class="test-grid">
+            <div class="test-card" id="card-percentages">
+                <div class="test-info">
+                    <h3>Percentages & Profit Loss</h3>
+                    <div class="test-meta">
+                        <span>10 Questions</span>
+                        <span id="score-percentages" class="status-badge status-completed">Score: 0/10</span>
+                    </div>
+                </div>
+                <a href="maths_test.html" class="btn-start">Start Test</a>
+            </div>
+        </div>
+    </div>
+</main>
+
+<script>
+    // This function checks LocalStorage for saved scores
+    function loadProgress() {
+        // Example for Linear Arrangement
+        const linearScore = localStorage.getItem('test_linear_score');
+        if (linearScore !== null) {
+            const badge = document.getElementById('score-linear');
+            badge.innerText = `Completed • Score: ${linearScore}/13`;
+            badge.style.display = 'inline-block';
+        }
+
+        // Example for Percentages
+        const percScore = localStorage.getItem('test_percentages_score');
+        if (percScore !== null) {
+            const badge = document.getElementById('score-percentages');
+            badge.innerText = `Completed • Score: ${percScore}/10`;
+            badge.style.display = 'inline-block';
+        }
+    }
+
+    window.onload = loadProgress;
+</script>
+
+</body>
+</html>

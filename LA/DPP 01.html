@@ -1,0 +1,699 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PW DPP Practice Tool</title>
+    <style>
+        :root {
+            --pw-blue: #0087fd; 
+            --pw-dark-blue: #232a58; 
+            --bg-gray: #f7f8fc;
+            --diff-easy-color: #2fb138;
+            --diff-medium-color: #aa7722; 
+            --diff-hard-color: #d93025;
+            --status-green: #2fb138;
+            --status-red: #ea5033;
+            --status-na: #6c757d;
+            --status-bg-box: #e9ecf5;
+        }
+
+        body { font-family: 'Segoe UI', Arial, sans-serif; background: var(--bg-gray); margin: 0; overflow: hidden; }
+        
+        /* --- TEST INTERFACE --- */
+        #test-interface { display: flex; flex-direction: column; height: 100vh; }
+        header { background: white; padding: 0 25px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #ddd; height: 60px; z-index: 100; }
+        
+        #timer-box { font-size: 0.95rem; color: #444; font-weight: 600; display: flex; align-items: center; }
+        #timer-box::before { content: '\23F1'; margin-right: 6px; font-size: 1.1rem; }
+
+        .pw-btn-style { background: white; color: var(--pw-blue); border: 1.5px solid var(--pw-blue); padding: 8px 22px; border-radius: 8px; font-weight: bold; cursor: pointer; transition: 0.2s; }
+        .pw-btn-style:hover { background: #e8f0fe; }
+
+        #main { flex: 1; display: flex; overflow: hidden; position: relative; }
+        #q-area { flex: 1; padding: 25px; display: flex; flex-direction: column; background: white; margin: 15px; border-radius: 12px; border: 1px solid #e0e0e0; overflow-y: auto; transition: margin 0.3s ease; }
+        
+        #sidebar-container { display: flex; position: relative; transition: width 0.3s ease; }
+        #right-sidebar { 
+            width: 340px; 
+            background: #fff; 
+            border-left: 1px solid #ddd; 
+            padding: 20px; 
+            display: flex; 
+            flex-direction: column; 
+            transition: transform 0.3s ease, width 0.3s ease;
+            overflow-x: hidden;
+        }
+
+        #sidebar-toggle {
+            position: absolute;
+            left: -20px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 24px;
+            height: 48px;
+            background: #eff4ff;
+            color: var(--pw-dark-blue);
+            border: 1px solid #ccd5f0;
+            border-radius: 8px 0 0 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            z-index: 50;
+            box-shadow: -2px 0 5px rgba(0,0,0,0.05);
+            font-size: 14px;
+            font-weight: bold;
+        }
+
+        #sidebar-container.collapsed #right-sidebar { width: 0; padding: 0; transform: translateX(100%); border-left: none; }
+        #sidebar-container.collapsed #sidebar-toggle { border-radius: 8px; left: -30px; }
+
+        @media (max-width: 768px) {
+            #right-sidebar { width: 260px; }
+            header { padding: 0 15px; }
+            #q-area { margin: 10px; padding: 15px; }
+            .pal-grid { grid-template-columns: repeat(4, 1fr) !important; }
+        }
+
+        #q-num-box { background: #eff1f5; color: var(--pw-dark-blue); padding: 6px 12px; border-radius: 6px; font-weight: bold; margin-right: 12px; }
+        #date-badge { font-size: 0.75rem; color: #666; background: #f0f0f0; padding: 2px 8px; border-radius: 4px; margin-left: 10px; font-weight: normal; }
+
+        .option { border: 1px solid #dee2e6; padding: 14px; margin: 10px 0; border-radius: 8px; cursor: pointer; transition: 0.2s; }
+        .correct { border-color: var(--status-green) !important; background: #f1fff2 !important; border-width: 2px !important; }
+        .wrong { border-color: var(--status-red) !important; background: #fff1f1 !important; border-width: 2px !important; }
+
+        #summary-card { background: var(--status-bg-box); padding: 20px; border-radius: 12px; margin-bottom: 25px; }
+        .stat-row { display: flex; align-items: center; margin-bottom: 12px; gap: 15px; font-weight: 600; font-size: 0.9rem; color: #444; }
+        .stat-count { width: 32px; height: 26px; border-radius: 6px; display: flex; align-items: center; justify-content: center; color: white; font-size: 0.85rem; }
+
+        .pal-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; }
+        .pal-btn { aspect-ratio: 1.1; border-radius: 8px; border: 1px solid #ccc; background: #f8f9fa; cursor: pointer; font-weight: 600; color: #555; }
+        .pal-btn.active { border: 2.5px solid var(--pw-blue); background: #fff; }
+        .res-correct { border: 1.5px solid var(--status-green) !important; color: var(--status-green) !important; background: #f1fff2; }
+        .res-wrong { border: 1.5px solid var(--status-red) !important; color: var(--status-red) !important; background: #fff1f1; }
+
+        #modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center; }
+        #submit-modal { background: white; width: 90%; max-width: 420px; padding: 30px; border-radius: 20px; text-align: center; box-shadow: 0 10px 25px rgba(0,0,0,0.2); }
+        .modal-icon { font-size: 40px; margin-bottom: 10px; }
+        #modal-stats-box { background: #f8f9fc; border-radius: 12px; padding: 15px; margin: 20px 0; text-align: left; border: 1px solid #eee; }
+        .modal-stat-line { display: flex; justify-content: space-between; margin-bottom: 8px; font-weight: 500; font-size: 0.95rem; }
+
+        #result-page { display: none; padding: 20px; height: 100vh; box-sizing: border-box; overflow-y: auto; background: var(--bg-gray); }
+        .result-container { max-width: 900px; margin: 0 auto; }
+        .card { background: white; padding: 25px; border-radius: 16px; border: 1px solid #e0e0e0; margin-bottom: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.02); }
+        .score-display { text-align: center; }
+        .score-big { font-size: 3.5rem; font-weight: 800; color: var(--pw-blue); margin: 10px 0; }
+        .analysis-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; }
+        .analysis-card { background: white; padding: 15px; border-radius: 12px; border: 1px solid #eee; text-align: center; }
+        .analysis-val { font-size: 1.3rem; font-weight: bold; display: block; margin-top: 5px; color: var(--pw-dark-blue); }
+    </style>
+</head>
+<body>
+
+<div id="test-interface">
+    <header>
+        <button class="pw-btn-style" onclick="window.location.reload()">Back</button>
+        <div id="timer-box"><span id="timer-display">00:00:00</span></div>
+        <button class="pw-btn-style" onclick="showModal()">Submit DPP</button>
+    </header>
+
+    <div id="main">
+        <div id="q-area">
+            <div id="q-header" style="display:flex; align-items:center; margin-bottom:15px;">
+                <div id="q-num-box">1</div>
+                <div id="difficulty-label" style="font-weight:bold;">MEDIUM</div>
+                <div id="date-badge"></div>
+            </div>
+            <div id="q-text" style="font-size:1.05rem; line-height:1.6; margin-bottom:20px; white-space:pre-wrap; color:#222;">Loading...</div>
+            <div id="options"></div>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-top:auto; padding-top:15px; border-top:1px solid #eee;">
+                <button class="pw-btn-style" id="prev-btn" onclick="nav(-1)">Previous</button>
+                <button class="pw-btn-style" id="next-btn" onclick="nav(1)">Next</button>
+            </div>
+        </div>
+
+        <div id="sidebar-container">
+            <button id="sidebar-toggle" onclick="toggleSidebar()">❯</button>
+            <div id="right-sidebar">
+                <div id="summary-card">
+                    <div class="stat-row"><div class="stat-count" style="background:var(--status-green);" id="count-correct">0</div>Correct</div>
+                    <div class="stat-row"><div class="stat-count" style="background:var(--status-red);" id="count-incorrect">0</div>Incorrect</div>
+                    <div class="stat-row" style="margin-bottom:0;"><div class="stat-count" style="background:var(--status-na);" id="count-na">0</div>Not Answered</div>
+                </div>
+                <h4 style="margin:0 0 10px 0; color:var(--pw-dark-blue);">Question Palette</h4>
+                <div class="pal-grid" id="pal-grid"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="modal-overlay">
+    <div id="submit-modal">
+        <div class="modal-icon">📝</div>
+        <h3 style="margin:10px 0; color:var(--pw-dark-blue);">Submit DPP</h3>
+        <p style="color:#666; font-size:0.9rem;">Are you sure you want to submit the DPP?</p>
+        <div id="modal-stats-box">
+            <div class="modal-stat-line"><span>Total Questions</span><span id="m-total">0</span></div>
+            <div class="modal-stat-line" style="color:var(--status-green)"><span>● Correct</span><span id="m-correct">0</span></div>
+            <div class="modal-stat-line" style="color:var(--status-red)"><span>● Incorrect</span><span id="m-incorrect">0</span></div>
+            <div class="modal-stat-line" style="color:var(--status-na)"><span>● Not Answered</span><span id="m-na">0</span></div>
+        </div>
+        <div style="display:flex; gap:12px;">
+            <button class="pw-btn-style" style="flex:1" onclick="hideModal()">Resume</button>
+            <button class="pw-btn-style" style="flex:1; background:var(--pw-blue); color:white; border:none;" onclick="finalSubmit()">Submit</button>
+        </div>
+    </div>
+</div>
+
+<div id="result-page">
+    <div class="result-container">
+        <div class="card">
+            <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap: wrap; gap: 15px;">
+                <div>
+                    <h2 style="margin:0; color:var(--pw-dark-blue);">Linear Arrangement (Level-1)</h2>
+                    <p style="color:#666; margin:5px 0;"><span id="dash-q-count">0</span> Questions • <span id="dash-m-count">0</span> Marks</p>
+                </div>
+                <div style="display:flex; gap:10px;">
+                    <button class="pw-btn-style" onclick="window.location.reload()">Reattempt</button>
+                    <a href="../index.html" class="pw-btn-style pw-btn-home">Home</a>
+                </div>
+            </div>
+        </div>
+        <div class="card score-display">
+            <p style="font-weight:bold; color:#666; letter-spacing:1px; margin:0;">YOUR SCORE</p>
+            <div class="score-big"><span id="final-score">0</span><span style="font-size:1.5rem; color:#999;"> / <span id="final-total">0</span></span></div>
+        </div>
+        <div class="analysis-grid">
+            <div class="analysis-card"><span>CORRECT</span><span class="analysis-val" style="color:var(--status-green)" id="res-c">0</span></div>
+            <div class="analysis-card"><span>INCORRECT</span><span class="analysis-val" style="color:var(--status-red)" id="res-i">0</span></div>
+            <div class="analysis-card"><span>SKIPPED</span><span class="analysis-val" id="res-s">0</span></div>
+            <div class="analysis-card"><span>ACCURACY</span><span class="analysis-val" id="res-acc">0%</span></div>
+            <div class="analysis-card"><span>TIME</span><span class="analysis-val" id="res-time">00:00:00</span></div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const questions = [
+  {
+    "date": "",
+    "text": "Q1. Seven people Z, Y, X, W, V, U and T are sitting in a linear row facing north. Z sits in the middle of the row.\n\nT sits immediately left of Z. Only one person sits between T and Y. There are only three people sitting between Y and V. W sits third to the left of V. U does not sit at any end of the row.\n\nHow many people are sitting between W and X?",
+    "options": ["Two", "Three", "One", "Four", "None of these"],
+    "ans": 3,
+    "diff": "MEDIUM"
+  },
+  {
+    "date": "",
+    "text": "Q2. Seven people Z, Y, X, W, V, U and T are sitting in a linear row facing north. Z sits in the middle of the row.\n\nT sits immediately left of Z. Only one person sits between T and Y. There are only three people sitting between Y and V. W sits third to the left of V. U does not sit at any end of the row.\n\nWhich of the following statement(s) is/are definitely true?",
+    "options": ["T sits at the end of the row.", "V is the immediate neighbor of Y.", "One person sitting between W and Z.", "U is not an immediate neighbor of X.", "None of these"],
+    "ans": 2,
+    "diff": "MEDIUM"
+  },
+  {
+    "date": "",
+    "text": "Q3. There are eight people A, B, C, D, E, F, G and H sitting in a row facing north but not necessarily in the same order. E sits third to the left of H, either E or H sit at an extreme end of the row. The number of people sitting to the left of E is same as the number of people sitting to the right of G. B sits second to the left of G. There are three people sitting between B and F. D sits to the left of F but does not sit at any of the extreme ends of the row. C sits to the left of A.\n\nHow many person(s) sit between C and B?",
+    "options": ["None", "Two", "Three", "One", "None of these"],
+    "ans": 2,
+    "diff": "MEDIUM"
+  },
+  {
+    "date": "",
+    "text": "Q4. There are eight people A, B, C, D, E, F, G and H sitting in a row facing north but not necessarily in the same order. E sits third to the left of H, either E or H sit at an extreme end of the row. The number of people sitting to the left of E is same as the number of people sitting to the right of G. B sits second to the left of G. There are three people sitting between B and F. D sits to the left of F but does not sit at any of the extreme ends of the row. C sits to the left of A.\n\nHow many person(s) sit to the left of A?",
+    "options": ["Three", "Seven", "None", "Two", "Six"],
+    "ans": 2,
+    "diff": "MEDIUM"
+  },
+  {
+    "date": "",
+    "text": "Q5. There are eight people A, B, C, D, E, F, G and H sitting in a row facing north but not necessarily in the same order. E sits third to the left of H, either E or H sit at an extreme end of the row. The number of people sitting to the left of E is same as the number of people sitting to the right of G. B sits second to the left of G. There are three people sitting between B and F. D sits to the left of F but does not sit at any of the extreme ends of the row. C sits to the left of A.\n\nWho among the following is third to the right of G?",
+    "options": ["F", "H", "C", "A", "None of these"],
+    "ans": 3,
+    "diff": "MEDIUM"
+  },
+  {
+    "date": "",
+    "text": "Q6. There are eight people A, B, C, D, E, F, G and H sitting in a row facing north but not necessarily in the same order. E sits third to the left of H, either E or H sit at an extreme end of the row. The number of people sitting to the left of E is same as the number of people sitting to the right of G. B sits second to the left of G. There are three people sitting between B and F. D sits to the left of F but does not sit at any of the extreme ends of the row. C sits to the left of A.\n\nWho among the following sits at the extreme left end of the row?",
+    "options": ["H", "E", "C", "A", "None of these"],
+    "ans": 2,
+    "diff": "MEDIUM"
+  },
+  {
+    "date": "",
+    "text": "Q7. There are eight people M, N, O, P, Q, R, S and T sitting in a row facing south but not necessarily in the same order. S sit at any of the extreme ends of the row. There are three people sitting between S and T. P sits second to the left of T. There are three people sitting between P and M. O sits near to M, but does not sit near to T. N sits second to the right of Q, who sit at any of the extreme ends of the row.\n\nIf N and R exchange their places, then who among the following sits on the immediate right of R?",
+    "options": ["P", "T", "None", "M", "None of these"],
+    "ans": 1,
+    "diff": "MEDIUM"
+  },
+  {
+    "date": "",
+    "text": "Q8. There are eight people M, N, O, P, Q, R, S and T sitting in a row facing south but not necessarily in the same order. S sit at any of the extreme ends of the row. There are three people sitting between S and T. P sits second to the left of T. There are three people sitting between P and M. O sits near to M, but does not sit near to T. N sits second to the right of Q, who sit at any of the extreme ends of the row.\n\nIn which of the following combinations is the second person sitting just right of the first person?",
+    "options": ["T,Q", "R,S", "P,M", "O,S", "None of these"],
+    "ans": 3,
+    "diff": "MEDIUM"
+  },
+  {
+    "date": "",
+    "text": "Q9. There are eight people M, N, O, P, Q, R, S and T sitting in a row facing south but not necessarily in the same order. S sit at any of the extreme ends of the row. There are three people sitting between S and T. P sits second to the left of T. There are three people sitting between P and M. O sits near to M, but does not sit near to T. N sits second to the right of Q, who sit at any of the extreme ends of the row.\n\nWho among the following sit at the extreme ends of the line?",
+    "options": ["O and Q", "T and N", "S and R", "P and M", "S and Q"],
+    "ans": 4,
+    "diff": "MEDIUM"
+  },
+  {
+    "date": "",
+    "text": "Q10. There are eight ladies O, Q, F, G, H, I, J and K. They all are sitting in a column but not necessarily in the same order. Few of them are facing North and few of them are front of South. People sitting close to each other are facing parallel direction (It means that if a lady is facing the North then neighbor of this lady will face South direction). K is sitting one of the side and third to the right of J, who is facing south direction. I is sitting third to the left of G, who is facing the North direction. I is the only neighbor of K. O is sitting second to the right of Q. H is not near to O.\n\nHow many ladies are sitting between I and F?",
+    "options": ["One", "Two", "Three", "Four", "None of these"],
+    "ans": 3,
+    "diff": "MEDIUM"
+  },
+  {
+    "date": "",
+    "text": "Q11. Eight persons Ajay, Vikas, Rashi, Deeraj, Trikush, Vinod, Gaurav and Harsh are sitting in a row such that equal numbers of people are facing towards the north and south direction. No two persons sitting together are facing the same direction.\n\nAjay is an immediate neighbor of Vinod who sits third from one of the extreme ends. Four people sit between Vikas and Rashi but none of them is sitting at the extreme end. Ajay sits third to the left of Vikas. Trikush sits adjacent to Vikas. More than three persons sit between Harsh and Gaurav who does not sit at an extreme end. Gaurav does not face north.\n\nFour of the following five are related to each other in some way and thus formed a group. Choose the one which does not belong to that group.",
+    "options": ["Trikush", "Vinod", "Deeraj", "Harsh", "Vikas"],
+    "ans": 0,
+    "diff": "HARD"
+  },
+  {
+    "date": "",
+    "text": "Q12. Eight persons Ajay, Vikas, Rashi, Deeraj, Trikush, Vinod, Gaurav and Harsh are sitting in a row such that equal numbers of people are facing towards the north and south direction. No two persons sitting together are facing the same direction.\n\nAjay is an immediate neighbor of Vinod who sits third from one of the extreme ends. Four people sit between Vikas and Rashi but none of them is sitting at the extreme end. Ajay sits third to the left of Vikas. Trikush sits adjacent to Vikas. More than three persons sit between Harsh and Gaurav who does not sit at an extreme end. Gaurav does not face north.\n\nWhat is the position of Gaurav with respect to Harsh?",
+    "options": ["4th to the left", "5th to the right", "2nd to the right", "Can't be determined", "3rd to the left"],
+    "ans": 2,
+    "diff": "MEDIUM"
+  },
+  {
+    "date": "",
+    "text": "Q13. Eight persons Ajay, Vikas, Rashi, Deeraj, Trikush, Vinod, Gaurav and Harsh are sitting in a row such that equal numbers of people are facing towards the north and south direction. No two persons sitting together are facing the same direction.\n\nAjay is an immediate neighbor of Vinod who sits third from one of the extreme ends. Four people sit between Vikas and Rashi but none of them is sitting at the extreme end. Ajay sits third to the left of Vikas. Trikush sits adjacent to Vikas. More than three persons sit between Harsh and Gaurav who does not sit at an extreme end. Gaurav does not face north.\n\nHow many people sit between Rashi and Trikush?",
+    "options": ["None", "Three", "Five", "Four", "One"],
+    "ans": 2,
+    "diff": "EASY"
+  },
+  {
+    "date": "",
+    "text": "Q14. A group of six people L, M, N, O, P, and Q are sitting in a row facing north but not necessarily in the given order. The person who is the oldest is sitting at the extreme end of the row. L is sitting second to the left of Q and the youngest person in the group is sitting just to the right of M. Age of N is more than M but less than O and the second oldest person is sitting to the left of N. O is sitting to the right of M and P, whose age is less than only Q is sitting at the left of Q.\n\nHow many people are there in the group whose age is more than M?",
+    "options": ["1", "4", "3", "2", "5"],
+    "ans": 1,
+    "diff": "MEDIUM"
+  },
+  {
+    "date": "",
+    "text": "Q15. A group of six people L, M, N, O, P, and Q are sitting in a row facing north but not necessarily in the given order. The person who is the oldest is sitting at the extreme end of the row. L is sitting second to the left of Q and the youngest person in the group is sitting just to the right of M. Age of N is more than M but less than O and the second oldest person is sitting to the left of N. O is sitting to the right of M and P, whose age is less than only Q is sitting at the left of Q.\n\nWho is sitting just to the right of N?",
+    "options": ["M", "L", "P", "Q", "O"],
+    "ans": 4,
+    "diff": "MEDIUM"
+  },
+  {
+    "date": "",
+    "text": "Q16. A group of six people L, M, N, O, P, and Q are sitting in a row facing north but not necessarily in the given order. The person who is the oldest is sitting at the extreme end of the row. L is sitting second to the left of Q and the youngest person in the group is sitting just to the right of M. Age of N is more than M but less than O and the second oldest person is sitting to the left of N. O is sitting to the right of M and P, whose age is less than only Q is sitting at the left of Q.\n\nHow many people in the group are younger than O?",
+    "options": ["1", "2", "3", "4", "5"],
+    "ans": 2,
+    "diff": "MEDIUM"
+  },
+  {
+    "date": "",
+    "text": "Q17. A group of six people L, M, N, O, P, and Q are sitting in a row facing north but not necessarily in the given order. The person who is the oldest is sitting at the extreme end of the row. L is sitting second to the left of Q and the youngest person in the group is sitting just to the right of M. Age of N is more than M but less than O and the second oldest person is sitting to the left of N. O is sitting to the right of M and P, whose age is less than only Q is sitting at the left of Q.\n\nWho is sitting third to the left of O?",
+    "options": ["L", "N", "P", "M", "Q"],
+    "ans": 1,
+    "diff": "MEDIUM"
+  },
+  {
+    "date": "",
+    "text": "Q18. A group of six people L, M, N, O, P, and Q are sitting in a row facing north but not necessarily in the given order. The person who is the oldest is sitting at the extreme end of the row. L is sitting second to the left of Q and the youngest person in the group is sitting just to the right of M. Age of N is more than M but less than O and the second oldest person is sitting to the left of N. O is sitting to the right of M and P, whose age is less than only Q is sitting at the left of Q.\n\nWho sits between N and O?",
+    "options": ["M only", "L only", "M and L", "P and M", "None of these"],
+    "ans": 2,
+    "diff": "MEDIUM"
+  },
+  {
+    "date": "",
+    "text": "Q19. A group of six people L, M, N, O, P, and Q are sitting in a row facing north but not necessarily in the given order. The person who is the oldest is sitting at the extreme end of the row. L is sitting second to the left of Q and the youngest person in the group is sitting just to the right of M. Age of N is more than M but less than O and the second oldest person is sitting to the left of N. O is sitting to the right of M and P, whose age is less than only Q is sitting at the left of Q.\n\nWho is sitting just to the right of N?",
+    "options": ["M", "L", "P", "Q", "O"],
+    "ans": 0,
+    "diff": "MEDIUM"
+  },
+  {
+    "date": "",
+    "text": "Q20. There are eight people M, N, O, P, Q, R, S and T sitting in a row facing south but not necessarily in the same order. S sit at any of the extreme ends of the row. There are three people sitting between S and T. P sits second to the left of T. There are three people sitting between P and M. O sits near to M, but does not sit near to T. N sits second to the right of Q, who sit at any of the extreme ends of the row.\n\nWho among the following sits second to the right of N?",
+    "options": ["P", "None", "R", "O", "None of these"],
+    "ans": 2,
+    "diff": "MEDIUM"
+  },
+  {
+    "date": "",
+    "text": "Q21. There are eight people M, N, O, P, Q, R, S and T sitting in a row facing south but not necessarily in the same order. S sit at any of the extreme ends of the row. There are three people sitting between S and T. P sits second to the left of T. There are three people sitting between P and M. O sits near to M, but does not sit near to T. N sits second to the right of Q, who sit at any of the extreme ends of the row.\n\nWho among the following sits third to the right of R?",
+    "options": ["T", "M", "P", "Q", "S"],
+    "ans": 4,
+    "diff": "MEDIUM"
+  },
+  {
+    "date": "",
+    "text": "Q22. There are eight people M, N, O, P, Q, R, S and T sitting in a row facing south but not necessarily in the same order. S sit at any of the extreme ends of the row. There are three people sitting between S and T. P sits second to the left of T. There are three people sitting between P and M. O sits near to M, but does not sit near to T. N sits second to the right of Q, who sit at any of the extreme ends of the row.\n\nWho among the following sits at the extreme ends of the row?",
+    "options": ["O and Q", "T and N", "S and R", "P and M", "S and Q"],
+    "ans": 3,
+    "diff": "MEDIUM"
+  },
+  {
+    "date": "",
+    "text": "Q23. There are nine persons - I, J, K, L, M, N, O, P, and Q seated in a row facing the north not necessarily in the same order. I is seated third to the left of the one who is seated fourth to the left of K. K is seated at one of the extreme ends of the row. M is seated at one of the extreme ends and second to the left of N. L is seated fourth from one of the extreme ends of the row. Q is seated second to the left of L. Neither K nor Q is an immediate neighbor of I. O and P are the immediate neighbors of each other. N is seated fourth to the left of O.\n\nWho among the following is seated third to the right of Q?",
+    "options": ["L", "K", "O", "M", "None of these"],
+    "ans": 2,
+    "diff": "EASY"
+  },
+  {
+    "date": "",
+    "text": "Q24. There are nine persons - I, J, K, L, M, N, O, P, and Q seated in a row facing the north not necessarily in the same order. I is seated third to the left of the one who is seated fourth to the left of K. K is seated at one of the extreme ends of the row. M is seated at one of the extreme ends and second to the left of N. L is seated fourth from one of the extreme ends of the row. Q is seated second to the left of L. Neither K nor Q is an immediate neighbor of I. O and P are the immediate neighbors of each other. N is seated fourth to the left of O.\n\nHow many persons are seated between I and P?",
+    "options": ["4", "6", "7", "5", "None of these"],
+    "ans": 3,
+    "diff": "MEDIUM"
+  },
+  {
+    "date": "",
+    "text": "Q25. There are nine persons - I, J, K, L, M, N, O, P, and Q seated in a row facing the north not necessarily in the same order. I is seated third to the left of the one who is seated fourth to the left of K. K is seated at one of the extreme ends of the row. M is seated at one of the extreme ends and second to the left of N. L is seated fourth from one of the extreme ends of the row. Q is seated second to the left of L. Neither K nor Q is an immediate neighbor of I. O and P are the immediate neighbors of each other. N is seated fourth to the left of O.\n\nWhat is the position of J with respect to K?",
+    "options": ["Fifth to the left", "Fourth to the left", "Second to the right", "Third to the right", "None of these"],
+    "ans": 3,
+    "diff": "MEDIUM"
+  },
+  {
+    "date": "",
+    "text": "Q26. There are nine persons - I, J, K, L, M, N, O, P, and Q seated in a row facing the north not necessarily in the same order. I is seated third to the left of the one who is seated fourth to the left of K. K is seated at one of the extreme ends of the row. M is seated at one of the extreme ends and second to the left of N. L is seated fourth from one of the extreme ends of the row. Q is seated second to the left of L. Neither K nor Q is an immediate neighbor of I. O and P are the immediate neighbors of each other. N is seated fourth to the left of O.\n\nWho among the following is immediate neighbor of both Q and L?",
+    "options": ["L", "I", "J", "M", "None of these"],
+    "ans": 2,
+    "diff": "EASY"
+  },
+  {
+    "date": "",
+    "text": "Q27. There are nine persons - I, J, K, L, M, N, O, P, and Q seated in a row facing the north not necessarily in the same order. I is seated third to the left of the one who is seated fourth to the left of K. K is seated at one of the extreme ends of the row. M is seated at one of the extreme ends and second to the left of N. L is seated fourth from one of the extreme ends of the row. Q is seated second to the left of L. Neither K nor Q is an immediate neighbor of I. O and P are the immediate neighbors of each other. N is seated fourth to the left of O.\n\nWho among the following is seated second to the left of the one who is seated second to the left of L?",
+    "options": ["Q", "I", "O", "M", "None of these"],
+    "ans": 3,
+    "diff": "MEDIUM"
+  },
+  {
+    "date": "",
+    "text": "Q28. Eight people(E, F, G, H, I, J, K and L) are sitting in a linear row. Not more than two persons facing in the same direction can sit together. The number of people facing south is the same as the number of people facing north.\n\nL sits second to the right of I. Both L and I face in the same direction. F sits second to the left of H. Person sitting immediately right to K, faces north. Two people sit between F and G. F and G face opposite to I. The number of people sitting to the right of G is the same as the number of people sitting to the right of H. E sits second to the left of K. E sits at the left end of the row. F is not an immediate neighbor of E. People sitting at the ends are facing the opposite direction. Only one person sits between G and J. Immediate neighbors of J face the opposite directions. G is not an immediate neighbor of K.\n\nHow many people sit to the left of J?",
+    "options": ["4", "5", "6", "3", "2"],
+    "ans": 3,
+    "diff": "MEDIUM"
+  },
+  {
+    "date": "",
+    "text": "Q29. Eight people(E, F, G, H, I, J, K and L) are sitting in a linear row. Not more than two persons facing in the same direction can sit together. The number of people facing south is the same as the number of people facing north.\n\nL sits second to the right of I. Both L and I face in the same direction. F sits second to the left of H. Person sitting immediately right to K, faces north. Two people sit between F and G. F and G face opposite to I. The number of people sitting to the right of G is the same as the number of people sitting to the right of H. E sits second to the left of K. E sits at the left end of the row. F is not an immediate neighbor of E. People sitting at the ends are facing the opposite direction. Only one person sits between G and J. Immediate neighbors of J face the opposite directions. G is not an immediate neighbor of K.\n\nHow many people sit between G and H?",
+    "options": ["5", "4", "3", "2", "1"],
+    "ans": 1,
+    "diff": "EASY"
+  },
+  {
+    "date": "",
+    "text": "Q30. Eight people(E, F, G, H, I, J, K and L) are sitting in a linear row. Not more than two persons facing in the same direction can sit together. The number of people facing south is the same as the number of people facing north.\n\nL sits second to the right of I. Both L and I face in the same direction. F sits second to the left of H. Person sitting immediately right to K, faces north. Two people sit between F and G. F and G face opposite to I. The number of people sitting to the right of G is the same as the number of people sitting to the right of H. E sits second to the left of K. E sits at the left end of the row. F is not an immediate neighbor of E. People sitting at the ends are facing the opposite direction. Only one person sits between G and J. Immediate neighbors of J face the opposite directions. G is not an immediate neighbor of K.\n\nF sits second to the right of _____?",
+    "options": ["J", "H", "L", "K", "None of these"],
+    "ans": 2,
+    "diff": "MEDIUM"
+  },
+  {
+    "date": "",
+    "text": "Q31. Eight people(E, F, G, H, I, J, K and L) are sitting in a linear row. Not more than two persons facing in the same direction can sit together. The number of people facing south is the same as the number of people facing north.\n\nL sits second to the right of I. Both L and I face in the same direction. F sits second to the left of H. Person sitting immediately right to K, faces north. Two people sit between F and G. F and G face opposite to I. The number of people sitting to the right of G is the same as the number of people sitting to the right of H. E sits second to the left of K. E sits at the left end of the row. F is not an immediate neighbor of E. People sitting at the ends are facing the opposite direction. Only one person sits between G and J. Immediate neighbors of J face the opposite directions. G is not an immediate neighbor of K.\n\nWho sits immediately left to H?",
+    "options": ["E", "G", "F", "K", "J"],
+    "ans": 3,
+    "diff": "EASY"
+  },
+  {
+    "date": "",
+    "text": "Q32. Eight people(E, F, G, H, I, J, K and L) are sitting in a linear row. Not more than two persons facing in the same direction can sit together. The number of people facing south is the same as the number of people facing north.\n\nL sits second to the right of I. Both L and I face in the same direction. F sits second to the left of H. Person sitting immediately right to K, faces north. Two people sit between F and G. F and G face opposite to I. The number of people sitting to the right of G is the same as the number of people sitting to the right of H. E sits second to the left of K. E sits at the left end of the row. F is not an immediate neighbor of E. People sitting at the ends are facing the opposite direction. Only one person sits between G and J. Immediate neighbors of J face the opposite directions. G is not an immediate neighbor of K.\n\nFind the odd one out?",
+    "options": ["K", "F", "G", "E", "L"],
+    "ans": 2,
+    "diff": "MEDIUM"
+  },
+  {
+    "date": "",
+    "text": "Q33. Eight people(M, N, O, P, Q, R, S and T) are sitting in a linear row. Some of them are facing north and some of them are facing south. No two persons sitting together, face in the same direction. P faces north. R and T face the same direction. Neither M nor O face the same direction as S. P sits second to the left of M. Neither P nor M sits at either of the ends. Only three people sit between M and O. T is an immediate neighbor of O but not P. Three people sit between T and S. S is an immediate neighbor of P. R doesn't sit at the end of the row. N faces the same direction as P. N doesn't sit at any of the ends.\n\nFind the odd one out?",
+    "options": ["T", "R", "S", "M", "Q"],
+    "ans": 2,
+    "diff": "MEDIUM"
+  },
+  {
+    "date": "",
+    "text": "Q34. Eight people(M, N, O, P, Q, R, S and T) are sitting in a linear row. Some of them are facing north and some of them are facing south. No two persons sitting together, face in the same direction. P faces north. R and T face the same direction. Neither M nor O face the same direction as S. P sits second to the left of M. Neither P nor M sits at either of the ends. Only three people sit between M and O. T is an immediate neighbor of O but not P. Three people sit between T and S. S is an immediate neighbor of P. R doesn't sit at the end of the row. N faces the same direction as P. N doesn't sit at any of the ends.\n\nHow many people sit between P and N?",
+    "options": ["5", "4", "3", "2", "1"],
+    "ans": 3,
+    "diff": "EASY"
+  },
+  {
+    "date": "",
+    "text": "Q35. Eight people(M, N, O, P, Q, R, S and T) are sitting in a linear row. Some of them are facing north and some of them are facing south. No two persons sitting together, face in the same direction. P faces north. R and T face the same direction. Neither M nor O face the same direction as S. P sits second to the left of M. Neither P nor M sits at either of the ends. Only three people sit between M and O. T is an immediate neighbor of O but not P. Three people sit between T and S. S is an immediate neighbor of P. R doesn't sit at the end of the row. N faces the same direction as P. N doesn't sit at any of the ends.\n\nWho sits exactly between R and Q?",
+    "options": ["P", "O", "T", "N", "S"],
+    "ans": 4,
+    "diff": "MEDIUM"
+  },
+  {
+    "date": "",
+    "text": "Q36. Eight people(M, N, O, P, Q, R, S and T) are sitting in a linear row. Some of them are facing north and some of them are facing south. No two persons sitting together, face in the same direction. P faces north. R and T face the same direction. Neither M nor O face the same direction as S. P sits second to the left of M. Neither P nor M sits at either of the ends. Only three people sit between M and O. T is an immediate neighbor of O but not P. Three people sit between T and S. S is an immediate neighbor of P. R doesn't sit at the end of the row. N faces the same direction as P. N doesn't sit at any of the ends.\n\nWho sits to the immediate right of R?",
+    "options": ["S", "M", "P", "T", "None of these"],
+    "ans": 1,
+    "diff": "MEDIUM"
+  },
+  {
+    "date": "",
+    "text": "Q37. Eight people(M, N, O, P, Q, R, S and T) are sitting in a linear row. Some of them are facing north and some of them are facing south. No two persons sitting together, face in the same direction. P faces north. R and T face the same direction. Neither M nor O face the same direction as S. P sits second to the left of M. Neither P nor M sits at either of the ends. Only three people sit between M and O. T is an immediate neighbor of O but not P. Three people sit between T and S. S is an immediate neighbor of P. R doesn't sit at the end of the row. N faces the same direction as P. N doesn't sit at any of the ends.\n\nWho sits third to the right of T?",
+    "options": ["M", "R", "S", "N", "None of these"],
+    "ans": 3,
+    "diff": "EASY"
+  },
+  {
+    "date": "",
+    "text": "Q38. Twelve persons A, B, C, D, E, F, S, T, U, V, W and X are sitting in two parallel rows. A, B, C, D, E and F are sitting in a row facing the south direction and S, T, U, V, W and X are sitting in another row facing the north direction in such a way that each person sitting in a row faces the person sitting in another row. C is sitting at one of the edges. V sits 3rd from one of the ends and is facing the person who sits immediate left of A. Two persons are sitting between A and B. E faces the person who sits exactly between V and T. C and A are not immediate neighbours. Three persons sit between X and T who sits to the immediate right of S. W sits at an extreme end and no person sits to the left of W. The number of persons sitting between U and T is the same as the number of persons sitting between D and C.\n\nFour of the following five are related to each other in some way and thus formed a group. Choose the one which does not belong to that group.",
+    "options": ["C", "B", "S", "W", "T"],
+    "ans": 3,
+    "diff": "MEDIUM"
+  },
+  {
+    "date": "",
+    "text": "Q39. Twelve persons A, B, C, D, E, F, S, T, U, V, W and X are sitting in two parallel rows. A, B, C, D, E and F are sitting in a row facing the south direction and S, T, U, V, W and X are sitting in another row facing the north direction in such a way that each person sitting in a row faces the person sitting in another row. C is sitting at one of the edges. V sits 3rd from one of the ends and is facing the person who sits immediate left of A. Two persons are sitting between A and B. E faces the person who sits exactly between V and T. C and A are not immediate neighbours. Three persons sit between X and T who sits to the immediate right of S. W sits at an extreme end and no person sits to the left of W. The number of persons sitting between U and T is the same as the number of persons sitting between D and C.\n\nHow many persons sit between the one who is facing T and F?",
+    "options": ["One", "Two", "Three", "Four", "None"],
+    "ans": 2,
+    "diff": "MEDIUM"
+  },
+  {
+    "date": "",
+    "text": "Q40. Twelve persons A, B, C, D, E, F, S, T, U, V, W and X are sitting in two parallel rows. A, B, C, D, E and F are sitting in a row facing the south direction and S, T, U, V, W and X are sitting in another row facing the north direction in such a way that each person sitting in a row faces the person sitting in another row. C is sitting at one of the edges. V sits 3rd from one of the ends and is facing the person who sits immediate left of A. Two persons are sitting between A and B. E faces the person who sits exactly between V and T. C and A are not immediate neighbours. Three persons sit between X and T who sits to the immediate right of S. W sits at an extreme end and no person sits to the left of W. The number of persons sitting between U and T is the same as the number of persons sitting between D and C.\n\nIf the position of V and B are interchanged, then how many persons are sitting to the left of V?",
+    "options": ["Three", "Five", "None", "Two", "One"],
+    "ans": 2,
+    "diff": "MEDIUM"
+  },
+  {
+    "date": "",
+    "text": "Q41. Twelve persons A, B, C, D, E, F, S, T, U, V, W and X are sitting in two parallel rows. A, B, C, D, E and F are sitting in a row facing the south direction and S, T, U, V, W and X are sitting in another row facing the north direction in such a way that each person sitting in a row faces the person sitting in another row. C is sitting at one of the edges. V sits 3rd from one of the ends and is facing the person who sits immediate left of A. Two persons are sitting between A and B. E faces the person who sits exactly between V and T. C and A are not immediate neighbours. Three persons sit between X and T who sits to the immediate right of S. W sits at an extreme end and no person sits to the left of W. The number of persons sitting between U and T is the same as the number of persons sitting between D and C.\n\nIn a certain way U is related to S similarly W is related to U, who among the following is related to E?",
+    "options": ["A", "D", "S", "F", "B"],
+    "ans": 2,
+    "diff": "MEDIUM"
+  },
+  {
+    "date": "",
+    "text": "Q42. Twelve persons A, B, C, D, E, F, S, T, U, V, W and X are sitting in two parallel rows. A, B, C, D, E and F are sitting in a row facing the south direction and S, T, U, V, W and X are sitting in another row facing the north direction in such a way that each person sitting in a row faces the person sitting in another row. C is sitting at one of the edges. V sits 3rd from one of the ends and is facing the person who sits immediate left of A. Two persons are sitting between A and B. E faces the person who sits exactly between V and T. C and A are not immediate neighbours. Three persons sit between X and T who sits to the immediate right of S. W sits at an extreme end and no person sits to the left of W. The number of persons sitting between U and T is the same as the number of persons sitting between D and C.\n\nWho sits opposite to the person who sits 3rd to the left of S?",
+    "options": ["A", "F", "X", "E", "B"],
+    "ans": 4,
+    "diff": "EASY"
+  },
+  {
+    "date": "",
+    "text": "Q43. Ten persons were seated in two parallel rows. A, B, C, D and E were in row 1 facing the north and P, Q, R, S and T were in row 2 facing the south. Each person of row 1 was seated facing another person from row 2. P was seated 3rd to the right of Q. Q was seated opposite to B. Only one person was seated between A and B. R was to the immediate left of P. E was the neighbor B and was 3rd to the right of D. T was facing C or D.\n\nHow many persons were seated between C and D?",
+    "options": ["None", "1", "2", "3", "Cannot be determined"],
+    "ans": 3,
+    "diff": "EASY"
+  },
+  {
+    "date": "",
+    "text": "Q44. Ten persons were seated in two parallel rows. A, B, C, D and E were in row 1 facing the north and P, Q, R, S and T were in row 2 facing the south. Each person of row 1 was seated facing another person from row 2. P was seated 3rd to the right of Q. Q was seated opposite to B. Only one person was seated between A and B. R was to the immediate left of P. E was the neighbor B and was 3rd to the right of D. T was facing C or D.\n\nIn which of the following groups is the 3rd person seated neighbouring the 1st and the 2nd person?",
+    "options": ["CAE", "PRQ", "TRP", "RQT", "AEB"],
+    "ans": 4,
+    "diff": "MEDIUM"
+  },
+  {
+    "date": "",
+    "text": "Q45. Ten persons were seated in two parallel rows. A, B, C, D and E were in row 1 facing the north and P, Q, R, S and T were in row 2 facing the south. Each person of row 1 was seated facing another person from row 2. P was seated 3rd to the right of Q. Q was seated opposite to B. Only one person was seated between A and B. R was to the immediate left of P. E was the neighbor B and was 3rd to the right of D. T was facing C or D.\n\nWhat was the position of S with respect to R?",
+    "options": ["Immediate left", "Second to the right", "Second to the left", "3rd to the right", "3rd to the left"],
+    "ans": 3,
+    "diff": "MEDIUM"
+  },
+  {
+    "date": "",
+    "text": "Q46. Ten persons were seated in two parallel rows. A, B, C, D and E were in row 1 facing the north and P, Q, R, S and T were in row 2 facing the south. Each person of row 1 was seated facing another person from row 2. P was seated 3rd to the right of Q. Q was seated opposite to B. Only one person was seated between A and B. R was to the immediate left of P. E was the neighbor B and was 3rd to the right of D. T was facing C or D.\n\nWho was seated facing S?",
+    "options": ["A", "C", "D", "E", "Cannot be determined"],
+    "ans": 2,
+    "diff": "MEDIUM"
+  },
+  {
+    "date": "",
+    "text": "Q47. There are 12 persons (A, B, C, D, E, F, P, Q, R, S, T, U) seated in two different rows i.e. row-1 and row-2. A, B, C, D, E and F are seated in row-1 facing south and P, Q, R, S, T and U are seated in row-2 facing north. Member of both the rows face each other. A is seated at the extreme right end of the row. T is sitting diagonally opposite to A. T is facing the one who is immediate left of E. P is seated at the extreme end of the row. B is facing the one who sits third to the right of D. F is seated second to the right of B. S does not face D. Q faces B.\n\nWho among the following faces U?",
+    "options": ["C", "A", "B", "D", "None of these"],
+    "ans": 2,
+    "diff": "MEDIUM"
+  },
+  {
+    "date": "",
+    "text": "Q48. There are 12 persons (A, B, C, D, E, F, P, Q, R, S, T, U) seated in two different rows i.e. row-1 and row-2. A, B, C, D, E and F are seated in row-1 facing south and P, Q, R, S, T and U are seated in row-2 facing north. Member of both the rows face each other. A is seated at the extreme right end of the row. T is sitting diagonally opposite to A. T is facing the one who is immediate left of E. P is seated at the extreme end of the row. B is facing the one who sits third to the right of D. F is seated second to the right of B. S does not face D. Q faces B.\n\nWhich of the following pair sits at the extreme left ends of both the rows?",
+    "options": ["C and P", "A and B", "S and T", "E and U", "None of these"],
+    "ans": 3,
+    "diff": "MEDIUM"
+  },
+  {
+    "date": "",
+    "text": "Q49. There are twelve persons seated in two parallel rows containing six persons in each row. In row-1 I, J, K, L, M, and N are seated facing the south and in row-2 P, Q, R, S, T, and U are seated facing the north. Each member of row-1 faces the another member of row-2 and vice versa. L is seated fourth to the right of N such that either of them is seated at one of the extreme ends. The one who faces L is seated third to the left of T. Two persons are seated between T and Q. Neither U nor R is seated at the extreme end. Two persons are seated between I and J, who seated at the extreme end. The one who faces I sits second to the left of P. P is not seated at the extreme end. I does not face U. M is seated to the right of K.\n\nFour of the following five are alike in a certain way and hence form a group. Find the one that does not belong to that group.",
+    "options": ["L", "J", "Q", "S", "N"],
+    "ans": 1,
+    "diff": "MEDIUM"
+  },
+  {
+    "date": "",
+    "text": "Q50. There are twelve persons seated in two parallel rows containing six persons in each row. In row-1 I, J, K, L, M, and N are seated facing the south and in row-2 P, Q, R, S, T, and U are seated facing the north. Each member of row-1 faces the another member of row-2 and vice versa. L is seated fourth to the right of N such that either of them is seated at one of the extreme ends. The one who faces L is seated third to the left of T. Two persons are seated between T and Q. Neither U nor R is seated at the extreme end. Two persons are seated between I and J, who seated at the extreme end. The one who faces I sits second to the left of P. P is not seated at the extreme end. I does not face U. M is seated to the right of K.\n\nWhat is the position of N with respect to M?",
+    "options": ["Second to the left", "Third to the left", "Third to the right", "Second to the right", "None of these"],
+    "ans": 3,
+    "diff": "MEDIUM"
+  },
+  {
+    "date": "",
+    "text": "Q51. There are twelve persons seated in two parallel rows containing six persons in each row. In row-1 I, J, K, L, M, and N are seated facing the south and in row-2 P, Q, R, S, T, and U are seated facing the north. Each member of row-1 faces the another member of row-2 and vice versa. L is seated fourth to the right of N such that either of them is seated at one of the extreme ends. The one who faces L is seated third to the left of T. Two persons are seated between T and Q. Neither U nor R is seated at the extreme end. Two persons are seated between I and J, who seated at the extreme end. The one who faces I sits second to the left of P. P is not seated at the extreme end. I does not face U. M is seated to the right of K.\n\nWhich of the following statement is true regarding R?",
+    "options": ["R faces one of the immediate neighbors of M", "R is seated second to the right of S", "The one who faces R is third to the left of N", "All are true", "None of these"],
+    "ans": 2,
+    "diff": "MEDIUM"
+  },
+  {
+    "date": "",
+    "text": "Q52. There are twelve persons seated in two parallel rows containing six persons in each row. In row-1 I, J, K, L, M, and N are seated facing the south and in row-2 P, Q, R, S, T, and U are seated facing the north. Each member of row-1 faces the another member of row-2 and vice versa. L is seated fourth to the right of N such that either of them is seated at one of the extreme ends. The one who faces L is seated third to the left of T. Two persons are seated between T and Q. Neither U nor R is seated at the extreme end. Two persons are seated between I and J, who seated at the extreme end. The one who faces I sits second to the left of P. P is not seated at the extreme end. I does not face U. M is seated to the right of K.\n\nWho among the following is facing K?",
+    "options": ["R", "S", "T", "Q", "None of these"],
+    "ans": 3,
+    "diff": "MEDIUM"
+  },
+  {
+    "date": "",
+    "text": "Q53. There are twelve persons seated in two parallel rows containing six persons in each row. In row-1 I, J, K, L, M, and N are seated facing the south and in row-2 P, Q, R, S, T, and U are seated facing the north. Each member of row-1 faces the another member of row-2 and vice versa. L is seated fourth to the right of N such that either of them is seated at one of the extreme ends. The one who faces L is seated third to the left of T. Two persons are seated between T and Q. Neither U nor R is seated at the extreme end. Two persons are seated between I and J, who seated at the extreme end. The one who faces I sits second to the left of P. P is not seated at the extreme end. I does not face U. M is seated to the right of K.\n\nWho among the following is facing M?",
+    "options": ["S", "Q", "T", "U", "None of these"],
+    "ans": 3,
+    "diff": "MEDIUM"
+  }
+];
+
+    let current = 0;
+    let userAnswers = new Array(questions.length).fill(null);
+    let states = new Array(questions.length).fill('unanswered');
+    let timers = new Array(questions.length).fill(0);
+    let timerInterval;
+
+    function toggleSidebar() {
+        const container = document.getElementById('sidebar-container');
+        const btn = document.getElementById('sidebar-toggle');
+        const isCollapsed = container.classList.toggle('collapsed');
+        btn.innerText = isCollapsed ? '❮' : '❯';
+    }
+
+    function render() {
+        const q = questions[current];
+        document.getElementById('q-num-box').innerText = current + 1;
+        document.getElementById('q-text').innerText = q.text;
+        document.getElementById('date-badge').innerText = q.date;
+        const label = document.getElementById('difficulty-label');
+        label.innerText = q.diff;
+        label.style.color = q.diff.includes("HARD") ? "var(--diff-hard-color)" : (q.diff.includes("EASY") ? "var(--diff-easy-color)" : "var(--diff-medium-color)");
+        
+        const optDiv = document.getElementById('options'); 
+        optDiv.innerHTML = '';
+        
+        q.options.forEach((opt, i) => {
+            const div = document.createElement('div'); 
+            div.className = 'option';
+            
+            // If already checked, show colors and disable clicks
+            if (states[current] === 'checked') {
+                div.style.pointerEvents = 'none';
+                if (i === q.ans) div.classList.add('correct');
+                else if (userAnswers[current] === i) div.classList.add('wrong');
+            }
+            
+            div.innerText = (i + 1) + ". " + opt;
+            
+            div.onclick = () => { 
+                if (states[current] !== 'checked') { 
+                    userAnswers[current] = i; 
+                    states[current] = 'checked'; // Set to checked immediately on click
+                    render(); 
+                } 
+            };
+            optDiv.appendChild(div);
+        });
+        updateUI();
+        startTimer();
+    }
+
+    function updateUI() {
+        const grid = document.getElementById('pal-grid'); 
+        grid.innerHTML = '';
+        let c = 0, inc = 0, chk = 0;
+        
+        questions.forEach((q, i) => {
+            const btn = document.createElement('button'); 
+            btn.className = 'pal-btn';
+            if (i === current) btn.classList.add('active');
+            
+            if (states[i] === 'checked') {
+                chk++;
+                if (userAnswers[i] === q.ans) { btn.classList.add('res-correct'); c++; }
+                else { btn.classList.add('res-wrong'); inc++; }
+            }
+            
+            btn.innerText = i + 1; 
+            btn.onclick = () => { current = i; render(); };
+            grid.appendChild(btn);
+        });
+        
+        document.getElementById('count-correct').innerText = c;
+        document.getElementById('count-incorrect').innerText = inc;
+        document.getElementById('count-na').innerText = questions.length - chk;
+    }
+
+    function nav(s) { 
+        current = Math.max(0, Math.min(questions.length - 1, current + s)); 
+        render(); 
+    }
+    
+    function startTimer() {
+        clearInterval(timerInterval);
+        timerInterval = setInterval(() => {
+            if (states[current] !== 'checked') timers[current]++;
+            let t = timers[current], h = Math.floor(t/3600), m = Math.floor((t%3600)/60), s = t%60;
+            document.getElementById('timer-display').innerText = `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+        }, 1000);
+    }
+
+    function showModal() {
+        document.getElementById('m-total').innerText = questions.length;
+        document.getElementById('m-correct').innerText = document.getElementById('count-correct').innerText;
+        document.getElementById('m-incorrect').innerText = document.getElementById('count-incorrect').innerText;
+        document.getElementById('m-na').innerText = document.getElementById('count-na').innerText;
+        document.getElementById('modal-overlay').style.display = 'flex';
+    }
+
+    function hideModal() { document.getElementById('modal-overlay').style.display = 'none'; }
+
+    function finalSubmit() {
+        document.getElementById('test-interface').style.display = 'none';
+        document.getElementById('modal-overlay').style.display = 'none';
+        document.getElementById('result-page').style.display = 'block';
+        
+        let c = parseInt(document.getElementById('m-correct').innerText);
+        let inc = parseInt(document.getElementById('m-incorrect').innerText);
+        
+        document.getElementById('dash-q-count').innerText = questions.length;
+        document.getElementById('dash-m-count').innerText = questions.length;
+        document.getElementById('final-score').innerText = c;
+        document.getElementById('final-total').innerText = questions.length;
+        
+        document.getElementById('res-c').innerText = c;
+        document.getElementById('res-i').innerText = inc;
+        document.getElementById('res-s').innerText = questions.length - (c + inc);
+        document.getElementById('res-acc').innerText = (c + inc) > 0 ? Math.round((c / (c + inc)) * 100) + "%" : "0%";
+        
+        let total = timers.reduce((a, b) => a + b, 0);
+        let h = Math.floor(total/3600), m = Math.floor((total%3600)/60), s = total%60;
+        document.getElementById('res-time').innerText = `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+    }
+
+    window.onload = render;
+</script>
+</body>
+</html>
