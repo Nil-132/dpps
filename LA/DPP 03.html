@@ -1,0 +1,608 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PW DPP Practice Tool</title>
+    <style>
+        :root {
+            --pw-blue: #0087fd; 
+            --pw-dark-blue: #232a58; 
+            --bg-gray: #f7f8fc;
+            --diff-easy-color: #2fb138;
+            --diff-medium-color: #aa7722; 
+            --diff-hard-color: #d93025;
+            --status-green: #2fb138;
+            --status-red: #ea5033;
+            --status-na: #6c757d;
+            --status-bg-box: #e9ecf5;
+        }
+
+        body { font-family: 'Segoe UI', Arial, sans-serif; background: var(--bg-gray); margin: 0; overflow: hidden; }
+        
+        /* --- TEST INTERFACE --- */
+        #test-interface { display: flex; flex-direction: column; height: 100vh; }
+        header { background: white; padding: 0 25px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #ddd; height: 60px; z-index: 100; }
+        
+        #timer-box { font-size: 0.95rem; color: #444; font-weight: 600; display: flex; align-items: center; }
+        #timer-box::before { content: '\23F1'; margin-right: 6px; font-size: 1.1rem; }
+
+        .pw-btn-style { background: white; color: var(--pw-blue); border: 1.5px solid var(--pw-blue); padding: 8px 22px; border-radius: 8px; font-weight: bold; cursor: pointer; transition: 0.2s; }
+        .pw-btn-style:hover { background: #e8f0fe; }
+
+        #main { flex: 1; display: flex; overflow: hidden; position: relative; }
+        #q-area { flex: 1; padding: 25px; display: flex; flex-direction: column; background: white; margin: 15px; border-radius: 12px; border: 1px solid #e0e0e0; overflow-y: auto; transition: margin 0.3s ease; }
+        
+        #sidebar-container { display: flex; position: relative; transition: width 0.3s ease; }
+        #right-sidebar { 
+            width: 340px; 
+            background: #fff; 
+            border-left: 1px solid #ddd; 
+            padding: 20px; 
+            display: flex; 
+            flex-direction: column; 
+            transition: transform 0.3s ease, width 0.3s ease;
+            overflow-x: hidden;
+        }
+
+        #sidebar-toggle {
+            position: absolute;
+            left: -20px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 24px;
+            height: 48px;
+            background: #eff4ff;
+            color: var(--pw-dark-blue);
+            border: 1px solid #ccd5f0;
+            border-radius: 8px 0 0 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            z-index: 50;
+            box-shadow: -2px 0 5px rgba(0,0,0,0.05);
+            font-size: 14px;
+            font-weight: bold;
+        }
+
+        #sidebar-container.collapsed #right-sidebar { width: 0; padding: 0; transform: translateX(100%); border-left: none; }
+        #sidebar-container.collapsed #sidebar-toggle { border-radius: 8px; left: -30px; }
+
+        @media (max-width: 768px) {
+            #right-sidebar { width: 260px; }
+            header { padding: 0 15px; }
+            #q-area { margin: 10px; padding: 15px; }
+            .pal-grid { grid-template-columns: repeat(4, 1fr) !important; }
+        }
+
+        #q-num-box { background: #eff1f5; color: var(--pw-dark-blue); padding: 6px 12px; border-radius: 6px; font-weight: bold; margin-right: 12px; }
+        #date-badge { font-size: 0.75rem; color: #666; background: #f0f0f0; padding: 2px 8px; border-radius: 4px; margin-left: 10px; font-weight: normal; }
+
+        .option { border: 1px solid #dee2e6; padding: 14px; margin: 10px 0; border-radius: 8px; cursor: pointer; transition: 0.2s; }
+        .correct { border-color: var(--status-green) !important; background: #f1fff2 !important; border-width: 2px !important; }
+        .wrong { border-color: var(--status-red) !important; background: #fff1f1 !important; border-width: 2px !important; }
+
+        #summary-card { background: var(--status-bg-box); padding: 20px; border-radius: 12px; margin-bottom: 25px; }
+        .stat-row { display: flex; align-items: center; margin-bottom: 12px; gap: 15px; font-weight: 600; font-size: 0.9rem; color: #444; }
+        .stat-count { width: 32px; height: 26px; border-radius: 6px; display: flex; align-items: center; justify-content: center; color: white; font-size: 0.85rem; }
+
+        .pal-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; }
+        .pal-btn { aspect-ratio: 1.1; border-radius: 8px; border: 1px solid #ccc; background: #f8f9fa; cursor: pointer; font-weight: 600; color: #555; }
+        .pal-btn.active { border: 2.5px solid var(--pw-blue); background: #fff; }
+        .res-correct { border: 1.5px solid var(--status-green) !important; color: var(--status-green) !important; background: #f1fff2; }
+        .res-wrong { border: 1.5px solid var(--status-red) !important; color: var(--status-red) !important; background: #fff1f1; }
+
+        #modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center; }
+        #submit-modal { background: white; width: 90%; max-width: 420px; padding: 30px; border-radius: 20px; text-align: center; box-shadow: 0 10px 25px rgba(0,0,0,0.2); }
+        .modal-icon { font-size: 40px; margin-bottom: 10px; }
+        #modal-stats-box { background: #f8f9fc; border-radius: 12px; padding: 15px; margin: 20px 0; text-align: left; border: 1px solid #eee; }
+        .modal-stat-line { display: flex; justify-content: space-between; margin-bottom: 8px; font-weight: 500; font-size: 0.95rem; }
+
+        #result-page { display: none; padding: 20px; height: 100vh; box-sizing: border-box; overflow-y: auto; background: var(--bg-gray); }
+        .result-container { max-width: 900px; margin: 0 auto; }
+        .card { background: white; padding: 25px; border-radius: 16px; border: 1px solid #e0e0e0; margin-bottom: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.02); }
+        .score-display { text-align: center; }
+        .score-big { font-size: 3.5rem; font-weight: 800; color: var(--pw-blue); margin: 10px 0; }
+        .analysis-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; }
+        .analysis-card { background: white; padding: 15px; border-radius: 12px; border: 1px solid #eee; text-align: center; }
+        .analysis-val { font-size: 1.3rem; font-weight: bold; display: block; margin-top: 5px; color: var(--pw-dark-blue); }
+    </style>
+</head>
+<body>
+
+<div id="test-interface">
+    <header>
+        <button class="pw-btn-style" onclick="window.location.reload()">Back</button>
+        <div id="timer-box"><span id="timer-display">00:00:00</span></div>
+        <button class="pw-btn-style" onclick="showModal()">Submit DPP</button>
+    </header>
+
+    <div id="main">
+        <div id="q-area">
+            <div id="q-header" style="display:flex; align-items:center; margin-bottom:15px;">
+                <div id="q-num-box">1</div>
+                <div id="difficulty-label" style="font-weight:bold;">MEDIUM</div>
+                <div id="date-badge"></div>
+            </div>
+            <div id="q-text" style="font-size:1.05rem; line-height:1.6; margin-bottom:20px; white-space:pre-wrap; color:#222;">Loading...</div>
+            <div id="options"></div>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-top:auto; padding-top:15px; border-top:1px solid #eee;">
+                <button class="pw-btn-style" id="prev-btn" onclick="nav(-1)">Previous</button>
+                <button class="pw-btn-style" id="next-btn" onclick="nav(1)">Next</button>
+            </div>
+        </div>
+
+        <div id="sidebar-container">
+            <button id="sidebar-toggle" onclick="toggleSidebar()">❯</button>
+            <div id="right-sidebar">
+                <div id="summary-card">
+                    <div class="stat-row"><div class="stat-count" style="background:var(--status-green);" id="count-correct">0</div>Correct</div>
+                    <div class="stat-row"><div class="stat-count" style="background:var(--status-red);" id="count-incorrect">0</div>Incorrect</div>
+                    <div class="stat-row" style="margin-bottom:0;"><div class="stat-count" style="background:var(--status-na);" id="count-na">0</div>Not Answered</div>
+                </div>
+                <h4 style="margin:0 0 10px 0; color:var(--pw-dark-blue);">Question Palette</h4>
+                <div class="pal-grid" id="pal-grid"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="modal-overlay">
+    <div id="submit-modal">
+        <div class="modal-icon">📝</div>
+        <h3 style="margin:10px 0; color:var(--pw-dark-blue);">Submit DPP</h3>
+        <p style="color:#666; font-size:0.9rem;">Are you sure you want to submit the DPP?</p>
+        <div id="modal-stats-box">
+            <div class="modal-stat-line"><span>Total Questions</span><span id="m-total">0</span></div>
+            <div class="modal-stat-line" style="color:var(--status-green)"><span>● Correct</span><span id="m-correct">0</span></div>
+            <div class="modal-stat-line" style="color:var(--status-red)"><span>● Incorrect</span><span id="m-incorrect">0</span></div>
+            <div class="modal-stat-line" style="color:var(--status-na)"><span>● Not Answered</span><span id="m-na">0</span></div>
+        </div>
+        <div style="display:flex; gap:12px;">
+            <button class="pw-btn-style" style="flex:1" onclick="hideModal()">Resume</button>
+            <button class="pw-btn-style" style="flex:1; background:var(--pw-blue); color:white; border:none;" onclick="finalSubmit()">Submit</button>
+        </div>
+    </div>
+</div>
+
+<div id="result-page">
+    <div class="result-container">
+        <div class="card">
+            <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap: wrap; gap: 15px;">
+                <div>
+                    <h2 style="margin:0; color:var(--pw-dark-blue);">Linear Arrangement (Level-3)</h2>
+                    <p style="color:#666; margin:5px 0;"><span id="dash-q-count">0</span> Questions • <span id="dash-m-count">0</span> Marks</p>
+                </div>
+                <div style="display:flex; gap:10px;">
+                    <button class="pw-btn-style" onclick="window.location.reload()">Reattempt</button>
+                    <a href="../index.html" class="pw-btn-style pw-btn-home">Home</a>
+                </div>
+            </div>
+        </div>
+        <div class="card score-display">
+            <p style="font-weight:bold; color:#666; letter-spacing:1px; margin:0;">YOUR SCORE</p>
+            <div class="score-big"><span id="final-score">0</span><span style="font-size:1.5rem; color:#999;"> / <span id="final-total">0</span></span></div>
+        </div>
+        <div class="analysis-grid">
+            <div class="analysis-card"><span>CORRECT</span><span class="analysis-val" style="color:var(--status-green)" id="res-c">0</span></div>
+            <div class="analysis-card"><span>INCORRECT</span><span class="analysis-val" style="color:var(--status-red)" id="res-i">0</span></div>
+            <div class="analysis-card"><span>SKIPPED</span><span class="analysis-val" id="res-s">0</span></div>
+            <div class="analysis-card"><span>ACCURACY</span><span class="analysis-val" id="res-acc">0%</span></div>
+            <div class="analysis-card"><span>TIME</span><span class="analysis-val" id="res-time">00:00:00</span></div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const questions = [
+  {
+    "date": "",
+    "text": "Q1. There are nine persons - I, J, K, L, M, N, O, P, and Q are seated in a row facing the north but not necessarily in the same order. They all are wearing shirt of different colors - Red, Green, Yellow, Black, Sky blue, White, Lavender, Orange, and Indigo.\n\nL is seated to the immediate left of O. The person who is wearing red shirt is seated immediate left of Q. The one who is wearing red shirt is seated at the extreme end of the row. I is seated at one of the extreme ends of the row. I is not wearing a shirt of Red or Green colour. N is seated exactly in the middle of the row and is wearing a shirt of yellow color. The one who is wearing Lavender shirt is seated third to the left of the one wearing yellow shirt. Four persons are seated between Q and J. P is seated second from the right end of the row and is wearing White shirt. There are three persons seated between the one wearing Lavender shirt and the one wearing Sky blue shirt. The one wearing green shirt is immediate neighbor of the one wearing the Indigo shirt and the one wearing the Lavender shirt. O is not wearing green shirt. J is not wearing an orange shirt. M is seated fourth from the right end of the row.\n\nWhich among the following pair is correct?",
+    "options": ["O - Black", "M - Lavender", "I - Orange", "K - Green", "None of these"],
+    "ans": 2,
+    "diff": "MEDIUM"
+  },
+  {
+    "date": "",
+    "text": "Q2. There are nine persons - I, J, K, L, M, N, O, P, and Q are seated in a row facing the north but not necessarily in the same order. They all are wearing shirt of different colors - Red, Green, Yellow, Black, Sky blue, White, Lavender, Orange, and Indigo.\n\nL is seated to the immediate left of O. The person who is wearing red shirt is seated immediate left of Q. The one who is wearing red shirt is seated at the extreme end of the row. I is seated at one of the extreme ends of the row. I is not wearing a shirt of Red or Green colour. N is seated exactly in the middle of the row and is wearing a shirt of yellow color. The one who is wearing Lavender shirt is seated third to the left of the one wearing yellow shirt. Four persons are seated between Q and J. P is seated second from the right end of the row and is wearing White shirt. There are three persons seated between the one wearing Lavender shirt and the one wearing Sky blue shirt. The one wearing green shirt is immediate neighbor of the one wearing the Indigo shirt and the one wearing the Lavender shirt. O is not wearing green shirt. J is not wearing an orange shirt. M is seated fourth from the right end of the row.\n\nWho among the following is wearing a Sky Blue shirt?",
+    "options": ["L", "K", "M", "Q", "None of these"],
+    "ans": 2,
+    "diff": "EASY"
+  },
+  {
+    "date": "",
+    "text": "Q3. There are nine persons - I, J, K, L, M, N, O, P, and Q are seated in a row facing the north but not necessarily in the same order. They all are wearing shirt of different colors - Red, Green, Yellow, Black, Sky blue, White, Lavender, Orange, and Indigo.\n\nL is seated to the immediate left of O. The person who is wearing red shirt is seated immediate left of Q. The one who is wearing red shirt is seated at the extreme end of the row. I is seated at one of the extreme ends of the row. I is not wearing a shirt of Red or Green colour. N is seated exactly in the middle of the row and is wearing a shirt of yellow color. The one who is wearing Lavender shirt is seated third to the left of the one wearing yellow shirt. Four persons are seated between Q and J. P is seated second from the right end of the row and is wearing White shirt. There are three persons seated between the one wearing Lavender shirt and the one wearing Sky blue shirt. The one wearing green shirt is immediate neighbor of the one wearing the Indigo shirt and the one wearing the Lavender shirt. O is not wearing green shirt. J is not wearing an orange shirt. M is seated fourth from the right end of the row.\n\nN is wearing which of the following shirt?",
+    "options": ["White", "Lavender", "Red", "Yellow", "None of these"],
+    "ans": 2,
+    "diff": "MEDIUM"
+  },
+  {
+    "date": "",
+    "text": "Q4. There are nine persons - I, J, K, L, M, N, O, P, and Q are seated in a row facing the north but not necessarily in the same order. They all are wearing shirt of different colors - Red, Green, Yellow, Black, Sky blue, White, Lavender, Orange, and Indigo.\n\nL is seated to the immediate left of O. The person who is wearing red shirt is seated immediate left of Q. The one who is wearing red shirt is seated at the extreme end of the row. I is seated at one of the extreme ends of the row. I is not wearing a shirt of Red or Green colour. N is seated exactly in the middle of the row and is wearing a shirt of yellow color. The one who is wearing Lavender shirt is seated third to the left of the one wearing yellow shirt. Four persons are seated between Q and J. P is seated second from the right end of the row and is wearing White shirt. There are three persons seated between the one wearing Lavender shirt and the one wearing Sky blue shirt. The one wearing green shirt is immediate neighbor of the one wearing the Indigo shirt and the one wearing the Lavender shirt. O is not wearing green shirt. J is not wearing an orange shirt. M is seated fourth from the right end of the row.\n\nWho among the following is seated fourth to the left of the one wearing black shirt?",
+    "options": ["Red", "Green", "Indigo", "Lavender", "None of these"],
+    "ans": 2,
+    "diff": "MEDIUM"
+  },
+  {
+    "date": "",
+    "text": "Q5. There are nine persons - I, J, K, L, M, N, O, P, and Q are seated in a row facing the north but not necessarily in the same order. They all are wearing shirt of different colors - Red, Green, Yellow, Black, Sky blue, White, Lavender, Orange, and Indigo.\n\nL is seated to the immediate left of O. The person who is wearing red shirt is seated immediate left of Q. The one who is wearing red shirt is seated at the extreme end of the row. I is seated at one of the extreme ends of the row. I is not wearing a shirt of Red or Green colour. N is seated exactly in the middle of the row and is wearing a shirt of yellow color. The one who is wearing Lavender shirt is seated third to the left of the one wearing yellow shirt. Four persons are seated between Q and J. P is seated second from the right end of the row and is wearing White shirt. There are three persons seated between the one wearing Lavender shirt and the one wearing Sky blue shirt. The one wearing green shirt is immediate neighbor of the one wearing the Indigo shirt and the one wearing the Lavender shirt. O is not wearing green shirt. J is not wearing an orange shirt. M is seated fourth from the right end of the row.\n\nHow many persons are seated to the right of the one wearing Lavender shirt?",
+    "options": ["4", "8", "5", "7", "None of these"],
+    "ans": 2,
+    "diff": "MEDIUM"
+  },
+  {
+    "date": "",
+    "text": "Q6. There are seven persons - I, J, K, L, M, N, and O standing in row facing the north but not necessarily in the same order. Each of them have a different profession - Anchor, Clerk, Singer, Scientist, Journalist, Manager, and HR not necessarily in the same order.\n\nO is standing at the fifth position to the left of K. Clerk is standing at the third position to the right of O. N is standing at the fifth position to the right of I. M is standing second to the left of J. Scientist is standing at the second position to the left of L. Three persons are standing between Scientist and HR. Singer is standing to the immediate left of Scientist. Journalist is to the immediate right of Manager.\n\nHow many persons are standing to the left of Clerk?",
+    "options": ["3", "7", "5", "4", "None of these"],
+    "ans": 4,
+    "diff": "EASY"
+  },
+  {
+    "date": "",
+    "text": "Q7. There are seven persons - I, J, K, L, M, N, and O standing in row facing the north but not necessarily in the same order. Each of them have a different profession - Anchor, Clerk, Singer, Scientist, Journalist, Manager, and HR not necessarily in the same order.\n\nO is standing at the fifth position to the left of K. Clerk is standing at the third position to the right of O. N is standing at the fifth position to the right of I. M is standing second to the left of J. Scientist is standing at the second position to the left of L. Three persons are standing between Scientist and HR. Singer is standing to the immediate left of Scientist. Journalist is to the immediate right of Manager.\n\nWho among the following are the immediate neighbors of HR?",
+    "options": ["Singer - Manager", "Journalist - Clerk", "Scientist - Manager", "Clerk - Anchor", "None of these"],
+    "ans": 2,
+    "diff": "EASY"
+  },
+  {
+    "date": "",
+    "text": "Q8. There are seven persons - I, J, K, L, M, N, and O standing in row facing the north but not necessarily in the same order. Each of them have a different profession - Anchor, Clerk, Singer, Scientist, Journalist, Manager, and HR not necessarily in the same order.\n\nO is standing at the fifth position to the left of K. Clerk is standing at the third position to the right of O. N is standing at the fifth position to the right of I. M is standing second to the left of J. Scientist is standing at the second position to the left of L. Three persons are standing between Scientist and HR. Singer is standing to the immediate left of Scientist. Journalist is to the immediate right of Manager.\n\nWho among the following is standing at the left end of the row?",
+    "options": ["Clerk", "Singer", "HR", "Anchor", "None of these"],
+    "ans": 2,
+    "diff": "EASY"
+  },
+  {
+    "date": "",
+    "text": "Q9. There are seven persons - I, J, K, L, M, N, and O standing in row facing the north but not necessarily in the same order. Each of them have a different profession - Anchor, Clerk, Singer, Scientist, Journalist, Manager, and HR not necessarily in the same order.\n\nO is standing at the fifth position to the left of K. Clerk is standing at the third position to the right of O. N is standing at the fifth position to the right of I. M is standing second to the left of J. Scientist is standing at the second position to the left of L. Three persons are standing between Scientist and HR. Singer is standing to the immediate left of Scientist. Journalist is to the immediate right of Manager.\n\nWho among the following is standing exactly in the middle of the row?",
+    "options": ["Clerk", "Anchor", "Journalist", "Singer", "None of these"],
+    "ans": 2,
+    "diff": "EASY"
+  },
+  {
+    "date": "",
+    "text": "Q10. There are seven persons - I, J, K, L, M, N, and O standing in row facing the north but not necessarily in the same order. Each of them have a different profession - Anchor, Clerk, Singer, Scientist, Journalist, Manager, and HR not necessarily in the same order.\n\nO is standing at the fifth position to the left of K. Clerk is standing at the third position to the right of O. N is standing at the fifth position to the right of I. M is standing second to the left of J. Scientist is standing at the second position to the left of L. Three persons are standing between Scientist and HR. Singer is standing to the immediate left of Scientist. Journalist is to the immediate right of Manager.\n\nWho among the following is standing third to the right of Manager?",
+    "options": ["Clerk", "Anchor", "HR", "Singer", "None of these"],
+    "ans": 1,
+    "diff": "MEDIUM"
+  },
+  {
+    "date": "",
+    "text": "Q11. There are eight employees - M, N, O, P, Q, R, S, and T are seated on a bench facing the north. They all are born on different months - May, June, July, August, September, October, November, and December.\n\nP does not have his birthday in the month of December. The one who is sitting at the extreme end, has his birthday in the month of May. P is sitting third right of the one whose birthday is May, who is neighbor of S. There are three persons sitting between P and M. The persons who have birthday in the month of July and September are sitting together. M has birthday in September. S is sitting immediate left of the one whose birthday is in August. O and Q are sitting together but both not have birthday in the month of July. The one whose birthday is in November is immediate right of the one whose birthday is in December. Q does not have birthday in the month of November. R does not sit to the immediate right or left of O. The immediate right of the one who sits at the extreme end, has birthday in October. T has birthday in May.\n\nThe one who is sitting immediate right of S, has birthday in which of the following month?",
+    "options": ["December", "May", "August", "June", "None of these"],
+    "ans": 1,
+    "diff": "EASY"
+  },
+  {
+    "date": "",
+    "text": "Q12. There are eight employees - M, N, O, P, Q, R, S, and T are seated on a bench facing the north. They all are born on different months - May, June, July, August, September, October, November, and December.\n\nP does not have his birthday in the month of December. The one who is sitting at the extreme end, has his birthday in the month of May. P is sitting third right of the one whose birthday is May, who is neighbor of S. There are three persons sitting between P and M. The persons who have birthday in the month of July and September are sitting together. M has birthday in September. S is sitting immediate left of the one whose birthday is in August. O and Q are sitting together but both not have birthday in the month of July. The one whose birthday is in November is immediate right of the one whose birthday is in December. Q does not have birthday in the month of November. R does not sit to the immediate right or left of O. The immediate right of the one who sits at the extreme end, has birthday in October. T has birthday in May.\n\nHow many persons are sitting between the one having birthday in the month of August and M?",
+    "options": ["1", "4", "3", "5", "None of these"],
+    "ans": 2,
+    "diff": "MEDIUM"
+  },
+  {
+    "date": "",
+    "text": "Q13. There are eight employees - M, N, O, P, Q, R, S, and T are seated on a bench facing the north. They all are born on different months - May, June, July, August, September, October, November, and December.\n\nP does not have his birthday in the month of December. The one who is sitting at the extreme end, has his birthday in the month of May. P is sitting third right of the one whose birthday is May, who is neighbor of S. There are three persons sitting between P and M. The persons who have birthday in the month of July and September are sitting together. M has birthday in September. S is sitting immediate left of the one whose birthday is in August. O and Q are sitting together but both not have birthday in the month of July. The one whose birthday is in November is immediate right of the one whose birthday is in December. Q does not have birthday in the month of November. R does not sit to the immediate right or left of O. The immediate right of the one who sits at the extreme end, has birthday in October. T has birthday in May.\n\nIn which of the following month P has birthday?",
+    "options": ["December", "September", "June", "August", "July"],
+    "ans": 2,
+    "diff": "MEDIUM"
+  },
+  {
+    "date": "",
+    "text": "Q14. There are eight employees - M, N, O, P, Q, R, S, and T are seated on a bench facing the north. They all are born on different months - May, June, July, August, September, October, November, and December.\n\nP does not have his birthday in the month of December. The one who is sitting at the extreme end, has his birthday in the month of May. P is sitting third right of the one whose birthday is May, who is neighbor of S. There are three persons sitting between P and M. The persons who have birthday in the month of July and September are sitting together. M has birthday in September. S is sitting immediate left of the one whose birthday is in August. O and Q are sitting together but both not have birthday in the month of July. The one whose birthday is in November is immediate right of the one whose birthday is in December. Q does not have birthday in the month of November. R does not sit to the immediate right or left of O. The immediate right of the one who sits at the extreme end, has birthday in October. T has birthday in May.\n\nWho among the following is having birthday in the month of November?",
+    "options": ["P", "T", "Q", "M", "O"],
+    "ans": 2,
+    "diff": "EASY"
+  },
+  {
+    "date": "",
+    "text": "Q15. There are eight employees - M, N, O, P, Q, R, S, and T are seated on a bench facing the north. They all are born on different months - May, June, July, August, September, October, November, and December.\n\nP does not have his birthday in the month of December. The one who is sitting at the extreme end, has his birthday in the month of May. P is sitting third right of the one whose birthday is May, who is neighbor of S. There are three persons sitting between P and M. The persons who have birthday in the month of July and September are sitting together. M has birthday in September. S is sitting immediate left of the one whose birthday is in August. O and Q are sitting together but both not have birthday in the month of July. The one whose birthday is in November is immediate right of the one whose birthday is in December. Q does not have birthday in the month of November. R does not sit to the immediate right or left of O. The immediate right of the one who sits at the extreme end, has birthday in October. T has birthday in May.\n\nWho among the following is sitting immediate left of N?",
+    "options": ["P", "R", "M", "O", "None of these"],
+    "ans": 3,
+    "diff": "MEDIUM"
+  },
+  {
+    "date": "",
+    "text": "Q16. Eight persons- A, B, C, D, E, F, G, and H are sitting in the linear row. Four of them are facing north and four of them are facing south but not necessarily in the same order. Not more than two persons facing the same direction sit together and all of them have a different number of novels from 1 to 10.\n\nB, who has 2 novels sits third to the right of D, and Vice versa. Only one person sits between D, who has odd number of novels but less than 5 and C. B and C are not immediate neighbors. The number of novels C has is square of the number of novels that B has. A sits adjacent to C and sits at end of the row. G, who has a prime number of novels but not (2 and 7) sits second to the right of A, and vice versa. A has three novels less than H. The persons who are sitting at the end are facing the opposite direction. The number of persons sitting between E and F is the same as between C and D. H has the maximum number of novels that can be possible. F does not face the north direction. C is facing the opposite direction of F. Immediate neighbors of G facing the same direction. F and E have 8 and 6 novels respectively. No one has only 1 novel.\n\nHow many persons are seated to the left of D?",
+    "options": ["2", "3", "4", "5", "None of these"],
+    "ans": 4,
+    "diff": "MEDIUM"
+  },
+  {
+    "date": "",
+    "text": "Q17. Eight persons- A, B, C, D, E, F, G, and H are sitting in the linear row. Four of them are facing north and four of them are facing south but not necessarily in the same order. Not more than two persons facing the same direction sit together and all of them have a different number of novels from 1 to 10.\n\nB, who has 2 novels sits third to the right of D, and Vice versa. Only one person sits between D, who has odd number of novels but less than 5 and C. B and C are not immediate neighbors. The number of novels C has is square of the number of novels that B has. A sits adjacent to C and sits at end of the row. G, who has a prime number of novels but not (2 and 7) sits second to the right of A, and vice versa. A has three novels less than H. The persons who are sitting at the end are facing the opposite direction. The number of persons sitting between E and F is the same as between C and D. H has the maximum number of novels that can be possible. F does not face the north direction. C is facing the opposite direction of F. Immediate neighbors of G facing the same direction. F and E have 8 and 6 novels respectively. No one has only 1 novel.\n\nWhat is the difference between novels A and B has?",
+    "options": ["2", "3", "4", "5", "None of these"],
+    "ans": 2,
+    "diff": "MEDIUM"
+  },
+  {
+    "date": "",
+    "text": "Q18. Eight persons- A, B, C, D, E, F, G, and H are sitting in the linear row. Four of them are facing north and four of them are facing south but not necessarily in the same order. Not more than two persons facing the same direction sit together and all of them have a different number of novels from 1 to 10.\n\nB, who has 2 novels sits third to the right of D, and Vice versa. Only one person sits between D, who has odd number of novels but less than 5 and C. B and C are not immediate neighbors. The number of novels C has is square of the number of novels that B has. A sits adjacent to C and sits at end of the row. G, who has a prime number of novels but not (2 and 7) sits second to the right of A, and vice versa. A has three novels less than H. The persons who are sitting at the end are facing the opposite direction. The number of persons sitting between E and F is the same as between C and D. H has the maximum number of novels that can be possible. F does not face the north direction. C is facing the opposite direction of F. Immediate neighbors of G facing the same direction. F and E have 8 and 6 novels respectively. No one has only 1 novel.\n\nHow many persons are sitting between C and E?",
+    "options": ["2", "3", "4", "5", "None of these"],
+    "ans": 3,
+    "diff": "EASY"
+  },
+  {
+    "date": "",
+    "text": "Q19. Eight persons- A, B, C, D, E, F, G, and H are sitting in the linear row. Four of them are facing north and four of them are facing south but not necessarily in the same order. Not more than two persons facing the same direction sit together and all of them have a different number of novels from 1 to 10.\n\nB, who has 2 novels sits third to the right of D, and Vice versa. Only one person sits between D, who has odd number of novels but less than 5 and C. B and C are not immediate neighbors. The number of novels C has is square of the number of novels that B has. A sits adjacent to C and sits at end of the row. G, who has a prime number of novels but not (2 and 7) sits second to the right of A, and vice versa. A has three novels less than H. The persons who are sitting at the end are facing the opposite direction. The number of persons sitting between E and F is the same as between C and D. H has the maximum number of novels that can be possible. F does not face the north direction. C is facing the opposite direction of F. Immediate neighbors of G facing the same direction. F and E have 8 and 6 novels respectively. No one has only 1 novel.\n\nWho among the following person sits immediate left of the one who has 6 novels?",
+    "options": ["F", "H", "B", "A", "None of these"],
+    "ans": 3,
+    "diff": "MEDIUM"
+  },
+  {
+    "date": "",
+    "text": "Q20. Eight persons- A, B, C, D, E, F, G, and H are sitting in the linear row. Four of them are facing north and four of them are facing south but not necessarily in the same order. Not more than two persons facing the same direction sit together and all of them have a different number of novels from 1 to 10.\n\nB, who has 2 novels sits third to the right of D, and Vice versa. Only one person sits between D, who has odd number of novels but less than 5 and C. B and C are not immediate neighbors. The number of novels C has is square of the number of novels that B has. A sits adjacent to C and sits at end of the row. G, who has a prime number of novels but not (2 and 7) sits second to the right of A, and vice versa. A has three novels less than H. The persons who are sitting at the end are facing the opposite direction. The number of persons sitting between E and F is the same as between C and D. H has the maximum number of novels that can be possible. F does not face the north direction. C is facing the opposite direction of F. Immediate neighbors of G facing the same direction. F and E have 8 and 6 novels respectively. No one has only 1 novel.\n\nWho has the lowest number of novels?",
+    "options": ["D", "H", "B", "A", "None of these"],
+    "ans": 1,
+    "diff": "MEDIUM"
+  },
+  {
+    "date": "",
+    "text": "Q21. Eight persons P, Q, R, S, V, X, Y, and Z are sitting in a straight row such that some of them are facing north and some of them are facing south direction but not necessarily in the same order. They all have different amount of money with them viz. Rs29, Rs49, Rs64, Rs36, Rs71, Rs67, Rs32, and Rs43 but not necessarily in the same order. They all have different product with them viz. Biscuit, Cream, Detergent, oils, Soap, Spices, Shampoo and toffee but not necessarily in the same order.\n\nY and X faces the opposite direction as Z, who has 43 rupee. R has more money than P, who sits near to Q. X has less money than P. The one who have cream is sitting third to the right of the one whose age is 29. Immediate neighbor of X faces the same direction. Y does not sit near to V. The one who has the highest amount of money sits third to the left of V. Neither V nor the one who has highest amount of money sits at the corner. The one who have soap is sitting second to the left of the one who have 67 rupee. The immediate neighbor of the one who has highest money faces south direction. The one who have shampoo is sitting immediate left of the one who have 32 rupees. The one who have biscuit is sitting immediate left of the one who have soap. Three persons sits between the one who has Rs67 and the one who has the least amount of money and one of them sits at the right corner of the row. The one who has the least amount of money is not an immediate neighbor of the one who has the highest amount of money. V has 36rupees. Q neither have the highest nor the lowest amount money. Z sits third to the right of Q. Y and X are immediate neighbors of Z. One who have Oil is sitting immediate left of Q. The number of persons sitting between Y and V is same as the number of persons sitting between V and S, who does not face south. The number of persons sitting to the left of V is same as the number of persons sitting to the right of Q. The one who have spices sitting immediate left of the one who have cream. The one who have 67 rupees having spices. The one who have Toffee is sitting immediate left of Z.\n\nWhat is the sum of money of the persons sitting at corner of table?",
+    "options": ["93", "87", "84", "76", "None of these"],
+    "ans": 2,
+    "diff": "EASY"
+  },
+  {
+    "date": "",
+    "text": "Q22. Eight persons P, Q, R, S, V, X, Y, and Z are sitting in a straight row such that some of them are facing north and some of them are facing south direction but not necessarily in the same order. They all have different amount of money with them viz. Rs29, Rs49, Rs64, Rs36, Rs71, Rs67, Rs32, and Rs43 but not necessarily in the same order. They all have different product with them viz. Biscuit, Cream, Detergent, oils, Soap, Spices, Shampoo and toffee but not necessarily in the same order.\n\nY and X faces the opposite direction as Z, who has 43 rupee. R has more money than P, who sits near to Q. X has less money than P. The one who have cream is sitting third to the right of the one whose age is 29. Immediate neighbor of X faces the same direction. Y does not sit near to V. The one who has the highest amount of money sits third to the left of V. Neither V nor the one who has highest amount of money sits at the corner. The one who have soap is sitting second to the left of the one who have 67 rupee. The immediate neighbor of the one who has highest money faces south direction. The one who have shampoo is sitting immediate left of the one who have 32 rupees. The one who have biscuit is sitting immediate left of the one who have soap. Three persons sits between the one who has Rs67 and the one who has the least amount of money and one of them sits at the right corner of the row. The one who has the least amount of money is not an immediate neighbor of the one who has the highest amount of money. V has 36rupees. Q neither have the highest nor the lowest amount money. Z sits third to the right of Q. Y and X are immediate neighbors of Z. One who have Oil is sitting immediate left of Q. The number of persons sitting between Y and V is same as the number of persons sitting between V and S, who does not face south. The number of persons sitting to the left of V is same as the number of persons sitting to the right of Q. The one who have spices sitting immediate left of the one who have cream. The one who have 67 rupees having spices. The one who have Toffee is sitting immediate left of Z.\n\nWhat is the position of the person who have soap with respect to V?",
+    "options": ["Third to the right", "Second to the right", "Third to the left", "Second to the left", "None of these"],
+    "ans": 2,
+    "diff": "EASY"
+  },
+  {
+    "date": "",
+    "text": "Q23. Eight persons P, Q, R, S, V, X, Y, and Z are sitting in a straight row such that some of them are facing north and some of them are facing south direction but not necessarily in the same order. They all have different amount of money with them viz. Rs29, Rs49, Rs64, Rs36, Rs71, Rs67, Rs32, and Rs43 but not necessarily in the same order. They all have different product with them viz. Biscuit, Cream, Detergent, oils, Soap, Spices, Shampoo and toffee but not necessarily in the same order.\n\nY and X faces the opposite direction as Z, who has 43 rupee. R has more money than P, who sits near to Q. X has less money than P. The one who have cream is sitting third to the right of the one whose age is 29. Immediate neighbor of X faces the same direction. Y does not sit near to V. The one who has the highest amount of money sits third to the left of V. Neither V nor the one who has highest amount of money sits at the corner. The one who have soap is sitting second to the left of the one who have 67 rupee. The immediate neighbor of the one who has highest money faces south direction. The one who have shampoo is sitting immediate left of the one who have 32 rupees. The one who have biscuit is sitting immediate left of the one who have soap. Three persons sits between the one who has Rs67 and the one who has the least amount of money and one of them sits at the right corner of the row. The one who has the least amount of money is not an immediate neighbor of the one who has the highest amount of money. V has 36rupees. Q neither have the highest nor the lowest amount money. Z sits third to the right of Q. Y and X are immediate neighbors of Z. One who have Oil is sitting immediate left of Q. The number of persons sitting between Y and V is same as the number of persons sitting between V and S, who does not face south. The number of persons sitting to the left of V is same as the number of persons sitting to the right of Q. The one who have spices sitting immediate left of the one who have cream. The one who have 67 rupees having spices. The one who have Toffee is sitting immediate left of Z.\n\nHow many persons have less money than Q?",
+    "options": ["Five", "Six", "Four", "Three", "None of these"],
+    "ans": 3,
+    "diff": "EASY"
+  },
+  {
+    "date": "",
+    "text": "Q24. Eight persons P, Q, R, S, V, X, Y, and Z are sitting in a straight row such that some of them are facing north and some of them are facing south direction but not necessarily in the same order. They all have different amount of money with them viz. Rs29, Rs49, Rs64, Rs36, Rs71, Rs67, Rs32, and Rs43 but not necessarily in the same order. They all have different product with them viz. Biscuit, Cream, Detergent, oils, Soap, Spices, Shampoo and toffee but not necessarily in the same order.\n\nY and X faces the opposite direction as Z, who has 43 rupee. R has more money than P, who sits near to Q. X has less money than P. The one who have cream is sitting third to the right of the one whose age is 29. Immediate neighbor of X faces the same direction. Y does not sit near to V. The one who has the highest amount of money sits third to the left of V. Neither V nor the one who has highest amount of money sits at the corner. The one who have soap is sitting second to the left of the one who have 67 rupee. The immediate neighbor of the one who has highest money faces south direction. The one who have shampoo is sitting immediate left of the one who have 32 rupees. The one who have biscuit is sitting immediate left of the one who have soap. Three persons sits between the one who has Rs67 and the one who has the least amount of money and one of them sits at the right corner of the row. The one who has the least amount of money is not an immediate neighbor of the one who has the highest amount of money. V has 36rupees. Q neither have the highest nor the lowest amount money. Z sits third to the right of Q. Y and X are immediate neighbors of Z. One who have Oil is sitting immediate left of Q. The number of persons sitting between Y and V is same as the number of persons sitting between V and S, who does not face south. The number of persons sitting to the left of V is same as the number of persons sitting to the right of Q. The one who have spices sitting immediate left of the one who have cream. The one who have 67 rupees having spices. The one who have Toffee is sitting immediate left of Z.\n\nWho among the following have Biscuits?",
+    "options": ["S", "P", "Q", "V", "None of these"],
+    "ans": 3,
+    "diff": "EASY"
+  },
+  {
+    "date": "",
+    "text": "Q25. Eight persons P, Q, R, S, V, X, Y, and Z are sitting in a straight row such that some of them are facing north and some of them are facing south direction but not necessarily in the same order. They all have different amount of money with them viz. Rs29, Rs49, Rs64, Rs36, Rs71, Rs67, Rs32, and Rs43 but not necessarily in the same order. They all have different product with them viz. Biscuit, Cream, Detergent, oils, Soap, Spices, Shampoo and toffee but not necessarily in the same order.\n\nY and X faces the opposite direction as Z, who has 43 rupee. R has more money than P, who sits near to Q. X has less money than P. The one who have cream is sitting third to the right of the one whose age is 29. Immediate neighbor of X faces the same direction. Y does not sit near to V. The one who has the highest amount of money sits third to the left of V. Neither V nor the one who has highest amount of money sits at the corner. The one who have soap is sitting second to the left of the one who have 67 rupee. The immediate neighbor of the one who has highest money faces south direction. The one who have shampoo is sitting immediate left of the one who have 32 rupees. The one who have biscuit is sitting immediate left of the one who have soap. Three persons sits between the one who has Rs67 and the one who has the least amount of money and one of them sits at the right corner of the row. The one who has the least amount of money is not an immediate neighbor of the one who has the highest amount of money. V has 36rupees. Q neither have the highest nor the lowest amount money. Z sits third to the right of Q. Y and X are immediate neighbors of Z. One who have Oil is sitting immediate left of Q. The number of persons sitting between Y and V is same as the number of persons sitting between V and S, who does not face south. The number of persons sitting to the left of V is same as the number of persons sitting to the right of Q. The one who have spices sitting immediate left of the one who have cream. The one who have 67 rupees having spices. The one who have Toffee is sitting immediate left of Z.\n\nHow many people are sitting between Q and Y?",
+    "options": ["Three", "Two", "Four", "one", "None of these"],
+    "ans": 3,
+    "diff": "EASY"
+  },
+  {
+    "date": "",
+    "text": "Q26. Ten people sitting in two parallel rows. Row 1 consist of A, B, C, D, E, all the person sitting in row 1 are facing south. Row 2 consist of F, G, H, I, J, all of them are facing north.\n\nAll ten people have a different number of chocolates with them. The number of chocolates they have are 6, 1, 11, 12, 9, 10, 8, 4, 2 and 7.\n\nNeither D nor C is sitting at the extreme ends. F has an odd number of chocolates. E is sitting opposite to J who is sitting second to one of the extreme ends. J has the highest number of chocolates. H is sitting second to the left of J and is facing the one who has 6 chocolates. The one who is sitting third to the left end of the first row has a prime number of chocolates. E has more number of chocolates than I. B who is sitting at the left end has 11 number of chocolates, 9 more than the one who is sitting at the right end of the same row. A is sitting diagonally opposite to I who has even number of chocolates. D is sitting at the right side of C. The number of people sitting to the right side of G is equal to the number of people sitting at the left side of G. Addition of the number of chocolates owned by F and H makes a perfect square and that addition is less than the number of chocolates owned by G.\n\nHow many chocolates are owned by the person who is sitting second to the left of the person who is sitting opposite of G?",
+    "options": ["12", "6", "7", "9", "11"],
+    "ans": 2,
+    "diff": "MEDIUM"
+  },
+  {
+    "date": "",
+    "text": "Q27. Ten people sitting in two parallel rows. Row 1 consist of A, B, C, D, E, all the person sitting in row 1 are facing south. Row 2 consist of F, G, H, I, J, all of them are facing north.\n\nAll ten people have a different number of chocolates with them. The number of chocolates they have are 6, 1, 11, 12, 9, 10, 8, 4, 2 and 7.\n\nNeither D nor C is sitting at the extreme ends. F has an odd number of chocolates. E is sitting opposite to J who is sitting second to one of the extreme ends. J has the highest number of chocolates. H is sitting second to the left of J and is facing the one who has 6 chocolates. The one who is sitting third to the left end of the first row has a prime number of chocolates. E has more number of chocolates than I. B who is sitting at the left end has 11 number of chocolates, 9 more than the one who is sitting at the right end of the same row. A is sitting diagonally opposite to I who has even number of chocolates. D is sitting at the right side of C. The number of people sitting to the right side of G is equal to the number of people sitting at the left side of G. Addition of the number of chocolates owned by F and H makes a perfect square and that addition is less than the number of chocolates owned by G.\n\nFour of the following five persons are somehow similar and thus form a group. Which of the following person does not belong to that group?",
+    "options": ["J", "F", "A", "B", "I"],
+    "ans": 2,
+    "diff": "MEDIUM"
+  },
+  {
+    "date": "",
+    "text": "Q28. Ten people sitting in two parallel rows. Row 1 consist of A, B, C, D, E, all the person sitting in row 1 are facing south. Row 2 consist of F, G, H, I, J, all of them are facing north.\n\nAll ten people have a different number of chocolates with them. The number of chocolates they have are 6, 1, 11, 12, 9, 10, 8, 4, 2 and 7.\n\nNeither D nor C is sitting at the extreme ends. F has an odd number of chocolates. E is sitting opposite to J who is sitting second to one of the extreme ends. J has the highest number of chocolates. H is sitting second to the left of J and is facing the one who has 6 chocolates. The one who is sitting third to the left end of the first row has a prime number of chocolates. E has more number of chocolates than I. B who is sitting at the left end has 11 number of chocolates, 9 more than the one who is sitting at the right end of the same row. A is sitting diagonally opposite to I who has even number of chocolates. D is sitting at the right side of C. The number of people sitting to the right side of G is equal to the number of people sitting at the left side of G. Addition of the number of chocolates owned by F and H makes a perfect square and that addition is less than the number of chocolates owned by G.\n\nHow many chocolates does G have?",
+    "options": ["12", "1", "8", "10", "9"],
+    "ans": 1,
+    "diff": "MEDIUM"
+  },
+  {
+    "date": "",
+    "text": "Q29. Ten people sitting in two parallel rows. Row 1 consist of A, B, C, D, E, all the person sitting in row 1 are facing south. Row 2 consist of F, G, H, I, J, all of them are facing north.\n\nAll ten people have a different number of chocolates with them. The number of chocolates they have are 6, 1, 11, 12, 9, 10, 8, 4, 2 and 7.\n\nNeither D nor C is sitting at the extreme ends. F has an odd number of chocolates. E is sitting opposite to J who is sitting second to one of the extreme ends. J has the highest number of chocolates. H is sitting second to the left of J and is facing the one who has 6 chocolates. The one who is sitting third to the left end of the first row has a prime number of chocolates. E has more number of chocolates than I. B who is sitting at the left end has 11 number of chocolates, 9 more than the one who is sitting at the right end of the same row. A is sitting diagonally opposite to I who has even number of chocolates. D is sitting at the right side of C. The number of people sitting to the right side of G is equal to the number of people sitting at the left side of G. Addition of the number of chocolates owned by F and H makes a perfect square and that addition is less than the number of chocolates owned by G.\n\nWhat is the position of F with respect to J?",
+    "options": ["Third to the left", "Third to the right", "second to the left", "Second to the right", "None of these"],
+    "ans": 2,
+    "diff": "MEDIUM"
+  },
+  {
+    "date": "",
+    "text": "Q30. Ten people sitting in two parallel rows. Row 1 consist of A, B, C, D, E, all the person sitting in row 1 are facing south. Row 2 consist of F, G, H, I, J, all of them are facing north.\n\nAll ten people have a different number of chocolates with them. The number of chocolates they have are 6, 1, 11, 12, 9, 10, 8, 4, 2 and 7.\n\nNeither D nor C is sitting at the extreme ends. F has an odd number of chocolates. E is sitting opposite to J who is sitting second to one of the extreme ends. J has the highest number of chocolates. H is sitting second to the left of J and is facing the one who has 6 chocolates. The one who is sitting third to the left end of the first row has a prime number of chocolates. E has more number of chocolates than I. B who is sitting at the left end has 11 number of chocolates, 9 more than the one who is sitting at the right end of the same row. A is sitting diagonally opposite to I who has even number of chocolates. D is sitting at the right side of C. The number of people sitting to the right side of G is equal to the number of people sitting at the left side of G. Addition of the number of chocolates owned by F and H makes a perfect square and that addition is less than the number of chocolates owned by G.\n\nWho is sitting second to the right of H?",
+    "options": ["F", "I", "G", "J", "None of the above"],
+    "ans": 0,
+    "diff": "MEDIUM"
+  },
+  {
+    "date": "",
+    "text": "Q31. B, E, G, H, J, K, L, N, R and S are sitting in two parallel rows containing six seats in each row. Ten persons are sitting on ten seats and there are two vacant seats. Each seat in a row faces another seat of the other row. In Row-1, all are facing north direction and in Row-2, all are facing south direction. In each row at least one vacant seat. Each of them likes different dry fruits viz. Anise, Apricot, Almond, Cashew nut, Coconut, Raisin, Dates, Fig, Peanuts and Walnuts, but not necessarily in the same order.\n\nN sits second to the right of H who sits opposite to the one who likes Peanuts. The one who likes Almond sits second to the left of the one who likes Cashew nut. There are two seats between the ones who like Peanuts and Dates who sits at one of the extreme ends. J sits third to the left of the one who likes Walnuts. The one who likes Anise sits immediate left of H. L sits second to the left of the vacant seat of Row-2. R sits opposite to the one who is an immediate neighbour of G. The one who likes Cashew nut sits at one of the extreme ends. The ones who like Almond and Fig sit opposite to each other. The ones who like Cashew nut and Apricot sit diagonally opposite to each other. The ones who like Walnuts and Coconut sit opposite each other. S sits second to the right of K and does not like Peanuts. Only one person sits between B and R who is not an immediate neighbour of H.\n\nWho among the following sits diagonally opposite to S?",
+    "options": ["B", "E", "R", "G", "None of these"],
+    "ans": 2,
+    "diff": "MEDIUM"
+  },
+  {
+    "date": "",
+    "text": "Q32. A three generation family of seven members went to watch a movie but unfortunately, they did not get seats in the same row. Three people sat on seats numbered 15, 16 and 17 of row M while four people sat on seats numbered 14, 15, 16, 17 of row N (just behind row M). While sitting, they are facing the screen. For every person of the family, either both or none of the parents are alive.\n\nNote: The person sitting in seat numbered 'x' of row N sat exactly behind the person sitting in seat numbered 'x' of row M.\n\nOnly one person is unmarried. O has two children and sat in seat numbered 16. P sat exactly behind his mother. D sat second to the left of her husband. C sat second to the right of his grandson. A and her sister-in-law sat next to each other. L and his wife were in the same row. Y's father and Y sat in different rows. P and his nephew are in different rows. O does not belong to the second generation. P does not have a brother. A is not Y's mother.\n\nWhat is the relationship of the people who sat on seat no. 17 of rows M and N respectively?",
+    "options": ["Father-in-law, daughter-in-law", "Father-in-law, son-in-law", "Father, daughter", "Father, son", "None of these"],
+    "ans": 1,
+    "diff": "MEDIUM"
+  },
+  {
+    "date": "",
+    "text": "Q33. A three generation family of seven members went to watch a movie but unfortunately, they did not get seats in the same row. Three people sat on seats numbered 15, 16 and 17 of row M while four people sat on seats numbered 14, 15, 16, 17 of row N (just behind row M). While sitting, they are facing the screen. For every person of the family, either both or none of the parents are alive.\n\nNote: The person sitting in seat numbered 'x' of row N sat exactly behind the person sitting in seat numbered 'x' of row M.\n\nOnly one person is unmarried. O has two children and sat in seat numbered 16. P sat exactly behind his mother. D sat second to the left of her husband. C sat second to the right of his grandson. A and her sister-in-law sat next to each other. L and his wife were in the same row. Y's father and Y sat in different rows. P and his nephew are in different rows. O does not belong to the second generation. P does not have a brother. A is not Y's mother.\n\nWho is sitting in between L and his wife?",
+    "options": ["D's brother", "A", "D's son", "Y's mother", "None of these"],
+    "ans": 2,
+    "diff": "MEDIUM"
+  },
+  {
+    "date": "",
+    "text": "Q34. A three generation family of seven members went to watch a movie but unfortunately, they did not get seats in the same row. Three people sat on seats numbered 15, 16 and 17 of row M while four people sat on seats numbered 14, 15, 16, 17 of row N (just behind row M). While sitting, they are facing the screen. For every person of the family, either both or none of the parents are alive.\n\nNote: The person sitting in seat numbered 'x' of row N sat exactly behind the person sitting in seat numbered 'x' of row M.\n\nOnly one person is unmarried. O has two children and sat in seat numbered 16. P sat exactly behind his mother. D sat second to the left of her husband. C sat second to the right of his grandson. A and her sister-in-law sat next to each other. L and his wife were in the same row. Y's father and Y sat in different rows. P and his nephew are in different rows. O does not belong to the second generation. P does not have a brother. A is not Y's mother.\n\nWho sat exactly behind Y?",
+    "options": ["L", "L's brother-in-law", "L's wife", "Y's uncle", "None of these"],
+    "ans": 1,
+    "diff": "MEDIUM"
+  },
+  {
+    "date": "",
+    "text": "Q35. A three generation family of seven members went to watch a movie but unfortunately, they did not get seats in the same row. Three people sat on seats numbered 15, 16 and 17 of row M while four people sat on seats numbered 14, 15, 16, 17 of row N (just behind row M). While sitting, they are facing the screen. For every person of the family, either both or none of the parents are alive.\n\nNote: The person sitting in seat numbered 'x' of row N sat exactly behind the person sitting in seat numbered 'x' of row M.\n\nOnly one person is unmarried. O has two children and sat in seat numbered 16. P sat exactly behind his mother. D sat second to the left of her husband. C sat second to the right of his grandson. A and her sister-in-law sat next to each other. L and his wife were in the same row. Y's father and Y sat in different rows. P and his nephew are in different rows. O does not belong to the second generation. P does not have a brother. A is not Y's mother.\n\nWho sat in front of Y's aunt?",
+    "options": ["C", "C's wife", "Y's mother", "Nobody from the family", "None of these"],
+    "ans": 1,
+    "diff": "MEDIUM"
+  },
+  {
+    "date": "",
+    "text": "Q36. Ten persons sit in two parallel rows for the conference. Five persons- A, B, C, D and E sit in row 1 facing towards the south and belong to the international cities viz., Athens, Bali, Sydney, Venice and Zurich. Five persons-F, G, H, I and J sit in row 2 facing towards the north and belong to the Indian cities viz., Delhi, Kota, Loni, Noida and Ujjain. All the given data is not necessarily in the same order. Distance between adjacent person is same and person sitting in row 1 are facing towards person sitting in row 2.\n\nB sits second to the left of A. The neighbour of J does not belong to Delhi. E belongs to Zurich and sits adjacent to the ones that belong to Sydney and Venice. F belongs to Loni and faces A. G, who is third to the right of F, sits at one of the ends. The person belongs to Noida faces E. J belongs to Ujjain and sits adjacent to I. The person who belongs to Athens sits second to the left of E. A as well as C neither belongs to Athens nor Venice.\n\nIf all the persons sitting in row 2 are arranged as per the English alphabetical order from left to right end, then I sits opposite to the person who belongs to ____.",
+    "options": ["Sydney", "Zurich", "Venice", "Bali", "None of these"],
+    "ans": 2,
+    "diff": "MEDIUM"
+  },
+  {
+    "date": "",
+    "text": "Q37. Ten persons sit in two parallel rows for the conference. Five persons- A, B, C, D and E sit in row 1 facing towards the south and belong to the international cities viz., Athens, Bali, Sydney, Venice and Zurich. Five persons-F, G, H, I and J sit in row 2 facing towards the north and belong to the Indian cities viz., Delhi, Kota, Loni, Noida and Ujjain. All the given data is not necessarily in the same order. Distance between adjacent person is same and person sitting in row 1 are facing towards person sitting in row 2.\n\nB sits second to the left of A. The neighbour of J does not belong to Delhi. E belongs to Zurich and sits adjacent to the ones that belong to Sydney and Venice. F belongs to Loni and faces A. G, who is third to the right of F, sits at one of the ends. The person belongs to Noida faces E. J belongs to Ujjain and sits adjacent to I. The person who belongs to Athens sits second to the left of E. A as well as C neither belongs to Athens nor Venice.\n\nPerson H sits second to the left of ____.",
+    "options": ["The person who sits adjacent to G", "J", "The person who belongs to Noida", "The person who belongs to Kota", "None of these"],
+    "ans": 2,
+    "diff": "MEDIUM"
+  },
+  {
+    "date": "",
+    "text": "Q38. Ten persons sit in two parallel rows for the conference. Five persons- A, B, C, D and E sit in row 1 facing towards the south and belong to the international cities viz., Athens, Bali, Sydney, Venice and Zurich. Five persons-F, G, H, I and J sit in row 2 facing towards the north and belong to the Indian cities viz., Delhi, Kota, Loni, Noida and Ujjain. All the given data is not necessarily in the same order. Distance between adjacent person is same and person sitting in row 1 are facing towards person sitting in row 2.\n\nB sits second to the left of A. The neighbour of J does not belong to Delhi. E belongs to Zurich and sits adjacent to the ones that belong to Sydney and Venice. F belongs to Loni and faces A. G, who is third to the right of F, sits at one of the ends. The person belongs to Noida faces E. J belongs to Ujjain and sits adjacent to I. The person who belongs to Athens sits second to the left of E. A as well as C neither belongs to Athens nor Venice.\n\nWhich of the following pair is odd from the rest?",
+    "options": ["E and I", "D and G", "H and C", "J and B", "A and H"],
+    "ans": 3,
+    "diff": "MEDIUM"
+  },
+  {
+    "date": "",
+    "text": "Q39. Ten persons sit in two parallel rows for the conference. Five persons- A, B, C, D and E sit in row 1 facing towards the south and belong to the international cities viz., Athens, Bali, Sydney, Venice and Zurich. Five persons-F, G, H, I and J sit in row 2 facing towards the north and belong to the Indian cities viz., Delhi, Kota, Loni, Noida and Ujjain. All the given data is not necessarily in the same order. Distance between adjacent person is same and person sitting in row 1 are facing towards person sitting in row 2.\n\nB sits second to the left of A. The neighbour of J does not belong to Delhi. E belongs to Zurich and sits adjacent to the ones that belong to Sydney and Venice. F belongs to Loni and faces A. G, who is third to the right of F, sits at one of the ends. The person belongs to Noida faces E. J belongs to Ujjain and sits adjacent to I. The person who belongs to Athens sits second to the left of E. A as well as C neither belongs to Athens nor Venice.\n\nWho among the following sit/sits between the persons who belong to Delhi and Kota?\nI. F\nII. Both I and J\nIII. H, G and F",
+    "options": ["Only III", "Both I and II", "Only I", "Only II", "None of these"],
+    "ans": 2,
+    "diff": "MEDIUM"
+  },
+  {
+    "date": "",
+    "text": "Q40. Ten persons sit in two parallel rows for the conference. Five persons- A, B, C, D and E sit in row 1 facing towards the south and belong to the international cities viz., Athens, Bali, Sydney, Venice and Zurich. Five persons-F, G, H, I and J sit in row 2 facing towards the north and belong to the Indian cities viz., Delhi, Kota, Loni, Noida and Ujjain. All the given data is not necessarily in the same order. Distance between adjacent person is same and person sitting in row 1 are facing towards person sitting in row 2.\n\nB sits second to the left of A. The neighbour of J does not belong to Delhi. E belongs to Zurich and sits adjacent to the ones that belong to Sydney and Venice. F belongs to Loni and faces A. G, who is third to the right of F, sits at one of the ends. The person belongs to Noida faces E. J belongs to Ujjain and sits adjacent to I. The person who belongs to Athens sits second to the left of E. A as well as C neither belongs to Athens nor Venice.\n\nWho belongs to Bali?",
+    "options": ["A", "The person who sits adjacent to D", "D", "C", "None of these"],
+    "ans": 3,
+    "diff": "MEDIUM"
+  }
+] ;
+
+    let current = 0;
+    let userAnswers = new Array(questions.length).fill(null);
+    let states = new Array(questions.length).fill('unanswered');
+    let timers = new Array(questions.length).fill(0);
+    let timerInterval;
+
+    function toggleSidebar() {
+        const container = document.getElementById('sidebar-container');
+        const btn = document.getElementById('sidebar-toggle');
+        const isCollapsed = container.classList.toggle('collapsed');
+        btn.innerText = isCollapsed ? '❮' : '❯';
+    }
+
+    function render() {
+        const q = questions[current];
+        document.getElementById('q-num-box').innerText = current + 1;
+        document.getElementById('q-text').innerText = q.text;
+        document.getElementById('date-badge').innerText = q.date;
+        const label = document.getElementById('difficulty-label');
+        label.innerText = q.diff;
+        label.style.color = q.diff.includes("HARD") ? "var(--diff-hard-color)" : (q.diff.includes("EASY") ? "var(--diff-easy-color)" : "var(--diff-medium-color)");
+        
+        const optDiv = document.getElementById('options'); 
+        optDiv.innerHTML = '';
+        
+        q.options.forEach((opt, i) => {
+            const div = document.createElement('div'); 
+            div.className = 'option';
+            
+            // If already checked, show colors and disable clicks
+            if (states[current] === 'checked') {
+                div.style.pointerEvents = 'none';
+                if (i === q.ans) div.classList.add('correct');
+                else if (userAnswers[current] === i) div.classList.add('wrong');
+            }
+            
+            div.innerText = (i + 1) + ". " + opt;
+            
+            div.onclick = () => { 
+                if (states[current] !== 'checked') { 
+                    userAnswers[current] = i; 
+                    states[current] = 'checked'; // Set to checked immediately on click
+                    render(); 
+                } 
+            };
+            optDiv.appendChild(div);
+        });
+        updateUI();
+        startTimer();
+    }
+
+    function updateUI() {
+        const grid = document.getElementById('pal-grid'); 
+        grid.innerHTML = '';
+        let c = 0, inc = 0, chk = 0;
+        
+        questions.forEach((q, i) => {
+            const btn = document.createElement('button'); 
+            btn.className = 'pal-btn';
+            if (i === current) btn.classList.add('active');
+            
+            if (states[i] === 'checked') {
+                chk++;
+                if (userAnswers[i] === q.ans) { btn.classList.add('res-correct'); c++; }
+                else { btn.classList.add('res-wrong'); inc++; }
+            }
+            
+            btn.innerText = i + 1; 
+            btn.onclick = () => { current = i; render(); };
+            grid.appendChild(btn);
+        });
+        
+        document.getElementById('count-correct').innerText = c;
+        document.getElementById('count-incorrect').innerText = inc;
+        document.getElementById('count-na').innerText = questions.length - chk;
+    }
+
+    function nav(s) { 
+        current = Math.max(0, Math.min(questions.length - 1, current + s)); 
+        render(); 
+    }
+    
+    function startTimer() {
+        clearInterval(timerInterval);
+        timerInterval = setInterval(() => {
+            if (states[current] !== 'checked') timers[current]++;
+            let t = timers[current], h = Math.floor(t/3600), m = Math.floor((t%3600)/60), s = t%60;
+            document.getElementById('timer-display').innerText = `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+        }, 1000);
+    }
+
+    function showModal() {
+        document.getElementById('m-total').innerText = questions.length;
+        document.getElementById('m-correct').innerText = document.getElementById('count-correct').innerText;
+        document.getElementById('m-incorrect').innerText = document.getElementById('count-incorrect').innerText;
+        document.getElementById('m-na').innerText = document.getElementById('count-na').innerText;
+        document.getElementById('modal-overlay').style.display = 'flex';
+    }
+
+    function hideModal() { document.getElementById('modal-overlay').style.display = 'none'; }
+
+    function finalSubmit() {
+        document.getElementById('test-interface').style.display = 'none';
+        document.getElementById('modal-overlay').style.display = 'none';
+        document.getElementById('result-page').style.display = 'block';
+        
+        let c = parseInt(document.getElementById('m-correct').innerText);
+        let inc = parseInt(document.getElementById('m-incorrect').innerText);
+        
+        document.getElementById('dash-q-count').innerText = questions.length;
+        document.getElementById('dash-m-count').innerText = questions.length;
+        document.getElementById('final-score').innerText = c;
+        document.getElementById('final-total').innerText = questions.length;
+        
+        document.getElementById('res-c').innerText = c;
+        document.getElementById('res-i').innerText = inc;
+        document.getElementById('res-s').innerText = questions.length - (c + inc);
+        document.getElementById('res-acc').innerText = (c + inc) > 0 ? Math.round((c / (c + inc)) * 100) + "%" : "0%";
+        
+        let total = timers.reduce((a, b) => a + b, 0);
+        let h = Math.floor(total/3600), m = Math.floor((total%3600)/60), s = total%60;
+        document.getElementById('res-time').innerText = `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+    }
+
+    window.onload = render;
+</script>
+</body>
+</html>
